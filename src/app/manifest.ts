@@ -16,10 +16,12 @@ export default function manifest(): MetadataRoute.Manifest {
     // (manifest cookie'ni o'qiy olmaydi, shuning uchun asosiy ko'rinish olingan)
     background_color: "#effbf6",
     theme_color: "#0a7ba5",
+    // Belgi markaz logotipidan yasaladi (Sozlamalar), yuklanmagan bo'lsa
+    // /api/app-icon eski statik belgiga yo'naltiradi
     icons: [
-      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/api/app-icon?s=192", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/api/app-icon?s=512", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/api/app-icon?s=512&m=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

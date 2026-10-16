@@ -40,7 +40,7 @@ export default function InstallPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-5 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-192.png" alt="" className="h-12 w-12 rounded-xl" />
+          <img src="/api/app-icon?s=192" alt="" className="h-12 w-12 rounded-xl" />
           <div>
             <h1 className="text-base font-bold text-slate-900 dark:text-white">Logoped CRM</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">

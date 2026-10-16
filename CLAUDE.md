@@ -121,15 +121,15 @@ Shuning uchun:
 
 ## Testlar
 
-Brauzerdagi uchidan-uchiga tekshiruvlar, jami 327 ta. Haqiqiy `next build` ustida
+Brauzerdagi uchidan-uchiga tekshiruvlar, jami 338 ta. Haqiqiy `next build` ustida
 ishlaydi va natijani to'g'ridan-to'g'ri bazadan tekshiradi.
 
 ```bash
 npm run build && npm start -- -p 3100    # boshqa terminalda
-node tests/smoke.mjs      # CRM, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati (233)
+node tests/smoke.mjs      # CRM, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati (236)
 node tests/telegram.mjs   # bog'lanish, imzo, mutaxassis Mini App (19)
 node tests/parent.mjs     # ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob (34)
-node tests/prefs.mjs      # tun/kun rejimi, til, tarjima to'liqligi, logotip, tepa panel (41)
+node tests/prefs.mjs      # tun/kun rejimi, til, tarjima to'liqligi, logotip, ilova belgisi, tepa panel (49)
 ```
 
 Kod o'zgartirgandan keyin shu to'rttasini ishga tushiring. Yangi imkoniyat qo'shsangiz
@@ -335,6 +335,12 @@ Jadval, Davomat, To'lovlar, Mutaxassislar.
   bo'lib qolmasin). Manzil faqat `script.google.com/macros/.../exec`
   bo'lishi mumkin. Yangi jadval yoki ustun qo'shsangiz, `buildSheets` ga ham
   qo'shishni o'ylang.
+- **Telefon ilovasining belgisi** markaz logotipidan yasaladi
+  (`/api/app-icon`, `sharp` bilan): manifest va root layout statik qolishi
+  uchun ular doim shu manzilga qaraydi, logotip yo'q bo'lsa u `public/`
+  dagi standart belgiga yo'naltiradi. Manzil `.png` bilan tugamasin — sw.js
+  `.png` larni abadiy keshlaydi. Android ilovasi (APK) belgisi esa APK
+  ichiga yozilgan — uni almashtirish uchun APK qayta yasaladi.
 - **Markaz sozlamalari** `src/lib/settings.ts` dagi `getSettings()` orqali olinadi.
   Bazada bitta qator (`id = "main"`); hali yozilmagan bo'lsa standart qiymatlar
   qaytadi — sahifa sozlama yo'qligi sababli ishlamay qolmasin. Ish vaqti
