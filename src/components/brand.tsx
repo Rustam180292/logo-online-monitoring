@@ -12,11 +12,11 @@ export function BrandMark({
   size?: "sm" | "md" | "lg";
 }) {
   // Logotiplar odatda mayda detalli rasm — kichik katakda ko'rinmay qolardi,
-  // shuning uchun belgi matndan kattaroq qilingan
+  // shuning uchun belgi matndan ancha katta qilingan
   const box = {
-    sm: "h-11 w-11 text-sm",
-    md: "h-14 w-14 text-lg",
-    lg: "h-20 w-20 text-2xl rounded-2xl",
+    sm: "h-13 w-13 text-base",
+    md: "h-18 w-18 text-xl",
+    lg: "h-28 w-28 text-3xl rounded-2xl",
   }[size];
   if (logoUrl) {
     return (

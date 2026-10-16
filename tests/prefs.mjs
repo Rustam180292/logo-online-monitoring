@@ -210,6 +210,32 @@ const PNG = Buffer.from(
     `${res.status} ${res.headers.get("content-type")}`,
   );
 
+  // Logotip menyuda kattaroq turadi (mayda detallari ko'rinsin)
+  const logoBox = await page.locator('aside [data-testid="brand-logo"]').boundingBox();
+  check("Menyudagi logotip katta (72 px)", Math.round(logoBox?.width ?? 0) === 72, JSON.stringify(logoBox));
+
+  // Telefon ilovasining belgisi shu logotipdan yasaladi
+  const manifest = await (await fetch(`${BASE}/manifest.webmanifest`)).json();
+  check(
+    "Manifest belgilari logotipdan olinadi",
+    manifest.icons.every((i) => i.src.startsWith("/api/app-icon?")),
+    manifest.icons.map((i) => i.src).join(", "),
+  );
+  const pngSide = (buf) => (buf.length > 24 ? buf.readUInt32BE(16) : 0);
+  for (const [q, px] of [["s=180", 180], ["s=192", 192], ["s=512", 512], ["s=512&m=1", 512]]) {
+    const r = await fetch(`${BASE}/api/app-icon?${q}`, { redirect: "manual" });
+    const side = pngSide(Buffer.from(await r.arrayBuffer()));
+    check(
+      `Ilova belgisi ${q} — ${px}x${px} PNG`,
+      r.status === 200 && r.headers.get("content-type") === "image/png" && side === px,
+      `${r.status} ${r.headers.get("content-type")} ${side}`,
+    );
+  }
+  const first = await fetch(`${BASE}/api/app-icon?s=192`);
+  const etag = first.headers.get("etag");
+  const again = await fetch(`${BASE}/api/app-icon?s=192`, { headers: { "if-none-match": etag ?? "" } });
+  check("Belgi o'zgarmagan bo'lsa qayta yuborilmaydi (304)", Boolean(etag) && again.status === 304, `${etag} ${again.status}`);
+
   // Kirish sahifasida ham ko'rinadi (kirmagan odam uchun)
   const anon = await newPage();
   await anon.page.goto(`${BASE}/login`);
@@ -230,6 +256,14 @@ const PNG = Buffer.from(
   await page.getByText("Logotip olib tashlandi.").waitFor({ timeout: 8000 }).catch(() => {});
   check("Logotip olib tashlanadi", !(await one("SELECT logoMime FROM Settings WHERE id='main'"))?.logoMime);
   check("Logotip yo'q bo'lsa manzil 404", (await fetch(`${BASE}/api/logo`)).status === 404);
+  {
+    const r = await fetch(`${BASE}/api/app-icon?s=512&m=1`, { redirect: "manual" });
+    check(
+      "Logotip yo'q bo'lsa ilova belgisi standart rasmga qaytadi",
+      r.status === 307 && (r.headers.get("location") ?? "").endsWith("/icon-maskable-512.png"),
+      `${r.status} ${r.headers.get("location")}`,
+    );
+  }
   await ctx.close();
 }
 

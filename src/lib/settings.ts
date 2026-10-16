@@ -95,13 +95,17 @@ export async function getSettings(): Promise<CenterSettings> {
 export const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export const LOGO_MAX_BYTES = 500 * 1024;
 
-export async function getLogo(): Promise<{ data: Buffer; mime: string } | null> {
+export async function getLogo(): Promise<{ data: Buffer; mime: string; updatedAt: Date | null } | null> {
   const row = await prisma.settings.findUnique({
     where: { id: "main" },
-    select: { logoData: true, logoMime: true },
+    select: { logoData: true, logoMime: true, logoUpdatedAt: true },
   });
   if (!row?.logoData || !row.logoMime) return null;
-  return { data: Buffer.from(row.logoData, "base64"), mime: row.logoMime };
+  return {
+    data: Buffer.from(row.logoData, "base64"),
+    mime: row.logoMime,
+    updatedAt: row.logoUpdatedAt,
+  };
 }
 
 /** Yakka logopedning o'z logotipi. Markaz filiallarida bunday narsa yo'q */
