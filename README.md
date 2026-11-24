@@ -21,7 +21,10 @@ mutaxassisning **o'z mijozlari** bor.
 | **Pulim** (mutaxassis) | Mutaxassisning o'z kabineti: qolgan (olishim kerak), shu oyda hisoblangan, jami hisoblangan va to'langan; har bir seansdan qancha tekkani va qo'lga tekkan to'lovlar tarixi. |
 | **To'lovlar** | Oy bo'yicha tushum, usul kesimi (naqd/karta/o'tkazma), to'lovlar ro'yxati, konsultatsiyalar. |
 | **Hisobotlar** | Oylik hisobot: filiallar kesimi, mutaxassislar kesimi, yo'nalishlar kesimi, markaz ulushi. |
-| **Ota-ona kabineti** | Ota-ona faqat o'z farzandini ko'radi: keyingi mashg'ulotlar, davomat tarixi, to'lovlar, mutaxassislar. Telegram Mini App ko'rinishi ham bor (bir nechta farzand bo'lsa — almashtirib ko'radi). |
+| **Baholash** | Bolaning holati shkalalar bo'yicha: ko'z kontakti, nutq darajasi, stimlar, sensor sezgirlik, kundalik ko'nikmalar. Javoblar bosib tanlanadi (2–3 daqiqa), oldingi baholash javoblari tayyor turadi. Dinamika jadvali: 3 oy oldin nima bo'lgan, hozir nima. |
+| **Dastur** | Bolaning 3 oylik maqsadlari va har bir maqsadga ishlaydigan mashqlar. Maqsadlar baholashdan tushadi. Mutaxassisning telefonida mashg'ulot rejasi o'zi yig'iladi: har bir mashq **Bajardi / Qiynaldi / Qila olmadi** bilan bir bosishda belgilanadi. |
+| **Mashqlar kutubxonasi** | Markazning umumiy ro'yxati: nomi, yo'nalishi, qanday bajarilishi, jihozi, yoshi. Mutaxassis mashqni bir marta yozadi — u markazda qoladi va yangi xodim birinchi kundan ishlay oladi. |
+| **Ota-ona kabineti** | Ota-ona faqat o'z farzandini ko'radi: keyingi mashg'ulotlar, davomat tarixi, to'lovlar, mutaxassislar, uyga vazifa va mutaxassisning qisqa xulosasi (mutaxassis ko'rsatishga ruxsat bergan bo'lsa). Telegram Mini App ko'rinishi ham bor (bir nechta farzand bo'lsa — almashtirib ko'radi). |
 | **Avtomatik eslatmalar** | Ota-onaga Telegram orqali: ertangi mashg'ulot va mashg'ulot o'tgani. Bir xil xabar ikki marta ketmaydi. |
 | **Ko'rinish va til** | Tun va kun rejimi (kunduzgisi oq, mentol va havo rang tusida). Interfeys tili: o'zbekcha, inglizcha, ruscha — menyu pastida, Sozlamalarda va kirish sahifasida tanlanadi; tanlov shu qurilmada saqlanadi. Markaz egasi Sozlamalardan logotip yuklaydi — u menyuda va kirish sahifasida ko'rinadi. |
 
@@ -31,9 +34,9 @@ mutaxassisning **o'z mijozlari** bor.
 |---|---|
 | `OWNER` — markaz egasi | Barcha filiallar, barcha bo'limlar. Markazni ikki kishi birga yuritsa, **Xodimlar** bo'limidan ikkinchi egalik akkaunti ochiladi |
 | `BRANCH_ADMIN` — filial admini | Faqat o'z filiali, barcha bo'limlar |
-| `RECEPTION` — qabulxona xodimi | O'z filialida **Jadval, Qabullar, Mijozlar, To'lovlar**. Mijoz qabul qiladi, to'lov oladi, davomat belgilaydi. Maosh, xodimlar va hisobotlar ko'rinmaydi; yozilgan to'lovni o'chira olmaydi |
-| `SPECIALIST` — mutaxassis | Faqat o'ziga biriktirilgan mijozlar va o'z seanslari; davomat belgilaydi. To'lov/hisobot bo'limlari yopiq |
-| `PARENT` — ota-ona | Faqat o'z farzandi, o'zgartirish huquqisiz |
+| `RECEPTION` — qabulxona xodimi | O'z filialida **Jadval, Qabullar, Mijozlar, To'lovlar**. Mijoz qabul qiladi, to'lov oladi, davomat belgilaydi. Maosh, xodimlar va hisobotlar ko'rinmaydi; yozilgan to'lovni o'chira olmaydi. **Baholash, dastur va mashqlar kutubxonasi** ham unga yopiq |
+| `SPECIALIST` — mutaxassis | Faqat o'ziga biriktirilgan mijozlar va o'z seanslari; davomat belgilaydi, bolani baholaydi va dasturini yuritadi. To'lov/hisobot bo'limlari yopiq |
+| `PARENT` — ota-ona | Faqat o'z farzandi, o'zgartirish huquqisiz. Baholashdan faqat mutaxassis ochiq qilgan qisqa xulosa va uyga vazifa ko'rinadi |
 
 Doira server tomonida — `src/lib/auth.ts` dagi `clientScope()` va `sessionScope()`
 har bir so'rovga qo'shiladi, ya'ni URL'ni qo'lda yozish bilan chetlab o'tib
@@ -236,13 +239,15 @@ ya'ni mijoz tomonida ortiqcha JS yo'q, telefon brauzerida ham tez ishlaydi.
 ```
 prisma/
   schema.prisma        ma'lumot modeli (Branch, User, Specialist, Client,
-                       Assignment, Package, Session, Payment)
+                       Assignment, Package, Session, Payment, Exercise,
+                       ClientGoal, ClientExercise, SessionExercise, Assessment)
   seed.ts              demo ma'lumotlar
 src/
   app/
     login/             kirish sahifasi va auth action'lari
-    (app)/             tizim ichi: panel, jadval, mijozlar, mutaxassislar,
-                       to'lovlar, hisobotlar, pulim, ota-ona kabineti
+    (app)/             tizim ichi: panel, jadval, mijozlar (karta, baholash,
+                       dastur), mashqlar kutubxonasi, mutaxassislar,
+                       to'lovlar, hisobotlar, pulim
     m/                 telefon kabineti (mutaxassis va ota-ona) — ilova ham,
                        Telegram Mini App ham shu sahifani ochadi
     tg/                Telegram kirish nuqtasi (imzoni tekshirib /m ga o'tkazadi)
@@ -252,6 +257,8 @@ src/
     auth.ts            sessiya, parol, rol bo'yicha ko'rish doirasi
     prisma.ts          baza ulanishi
     stats.ts           davomat, daromad, ish haqi
+    assessment.ts      baholash savollari va javoblarni tekshirish
+    program.ts         mashqlar doirasi, bolaning dasturi va mashg'ulot rejasi
     constants.ts       rollar, mutaxassisliklar, holatlar (o'zbekcha nomlar)
     action.ts          amal xatolarini foydalanuvchiga xabar qilib yetkazish
     flash.ts           qisqa xabar cookie'si
@@ -262,9 +269,9 @@ src/
 public/                ikonkalar, xizmat ishchisi (sw.js), offline sahifa
 tests/
   db.mjs               testlar uchun bazaga kichik ulanish
-  smoke.mjs            CRM: kirish, davomat, to'lov, ish haqi, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati (236 ta)
+  smoke.mjs            CRM: kirish, davomat, to'lov, ish haqi, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati, baholash, dastur va mashqlar kutubxonasi (254 ta)
   telegram.mjs         bog'lanish, imzo, mutaxassis Mini App'i (19 ta)
-  parent.mjs           ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob (34 ta)
+  parent.mjs           ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob, uyga vazifa (37 ta)
 ```
 
 ## Hisob-kitob mantig'i
@@ -293,15 +300,15 @@ npx tsc --noEmit
 npm run build
 ```
 
-Brauzerdagi uchidan-uchiga tekshiruvlar — jami 338 ta:
+Brauzerdagi uchidan-uchiga tekshiruvlar — jami 359 ta:
 
 ```bash
 npm i -D playwright && npx playwright install chromium   # bir martalik
 npm run db:reset
 npm run build && npm start -- -p 3100                    # boshqa terminalda
-node tests/smoke.mjs      # CRM: kirish, davomat, to'lov, ish haqi, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati (236)
+node tests/smoke.mjs      # CRM: kirish, davomat, to'lov, ish haqi, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati, baholash, dastur va mashqlar kutubxonasi (254)
 node tests/telegram.mjs   # Telegram: bog'lanish, imzo, Mini App (19)
-node tests/parent.mjs     # Ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob (34)
+node tests/parent.mjs     # Ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob, uyga vazifa (37)
 node tests/prefs.mjs      # Tun/kun rejimi, til (uz/en/ru), tarjima to'liqligi, logotip, ilova belgisi, tepa panel (49)
 ```
 
@@ -360,9 +367,9 @@ Google Cloud kaliti va Vercel sozlamasi kerak emas.
 
 ## Keyingi bosqichlar uchun g'oyalar
 
-- Mutaxassisning mashg'ulot kundaligi (har bir seansdan keyin qisqa hisobot)
-- Ota-ona Mini App'dan mashg'ulotni bekor qilish / ko'chirish so'rovi
-- Bolaning rivojlanish dinamikasi: maqsadlar va natijalar grafigi
+- Ota-ona Mini App'dan mashg'ulotni ko'chirish so'rovi
+- Baholash dinamikasining grafigi (hozircha jadval ko'rinishida)
+- Andoza dasturlar: tayyor maqsad va mashqlar to'plamini bir bosishda qo'llash
 - Ish haqi vedomosti (oylik, chop etish uchun)
 - Xona (kabinet) bandligi va jadvalda ziddiyatni tekshirish
 - Hisobotlarni Excel'ga yuklash

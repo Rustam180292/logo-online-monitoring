@@ -160,7 +160,12 @@ async function main() {
   await prisma.salaryPayout.deleteMany();
   await prisma.linkCode.deleteMany();
   await prisma.payment.deleteMany();
+  await prisma.sessionExercise.deleteMany();
   await prisma.session.deleteMany();
+  await prisma.clientExercise.deleteMany();
+  await prisma.clientGoal.deleteMany();
+  await prisma.assessment.deleteMany();
+  await prisma.exercise.deleteMany();
   await prisma.clientService.deleteMany();
   await prisma.package.deleteMany();
   await prisma.sessionType.deleteMany();
@@ -451,6 +456,152 @@ async function main() {
             });
           }
         }
+      }
+    }
+  }
+
+  /* ---- Mashqlar kutubxonasi, dastur va baholash ---- */
+
+  // Markazning umumiy kutubxonasi (branchId bo'sh — hamma filialga).
+  // Yo'nalish kalitlari: src/lib/constants.ts dagi EXERCISE_AREAS
+  const EXERCISES = [
+    { name: "Barmoq gimnastikasi", area: "FINE_MOTOR", description: "“Barmoqlar oilasi” — har bir barmoqni nomlab bukish, 2 daqiqa", equipment: null, homework: true },
+    { name: "Prujinali qisqichlar", area: "FINE_MOTOR", description: "Qisqichlarni kartonga qadash, 10 ta", equipment: "Qisqich, karton", homework: false },
+    { name: "Munchoq terish", area: "FINE_MOTOR", description: "Ipga munchoq terish: avval katta, keyin kichik", equipment: "Munchoq, ip", homework: true },
+    { name: "“K” tovushini qo'yish", area: "ARTICULATION", description: "Oyna oldida bo'g'inlarda: ka-ko-ku", equipment: "Oyna", homework: true },
+    { name: "Predmetli lotolar", area: "SPEECH", description: "Kartochkadagi narsani nomlab, juftini topish", equipment: "Kartochkalar", homework: false },
+    { name: "Sensor quti: yorma", area: "SENSORY", description: "Yorma ichidan buyum topish, ko'z yumib", equipment: "Quti, yorma", homework: false },
+    { name: "To'siqdan sakrash", area: "GROSS_MOTOR", description: "Past to'siqdan ikki oyoqlab, 6 marta", equipment: "Past to'siq", homework: false },
+    { name: "Tanaga bosim", area: "SENSORY", description: "Og'ir ko'rpacha bilan yengil bosim, 5 daqiqa", equipment: "Og'ir ko'rpacha", homework: true },
+    { name: "Ko'z kontakti o'yini", area: "COMMUNICATION", description: "Yoqimli narsani ko'z oldiga olib kelib, qaraganda berish", equipment: null, homework: true },
+    { name: "Navbat bilan o'ynash", area: "PLAY", description: "Koptokni navbat bilan dumalatish: “sen — men”", equipment: "Koptok", homework: false },
+    { name: "Qoshiq bilan ovqatlanish", area: "DAILY", description: "Qo'ldan ushlab yordam berish, keyin mustaqil", equipment: "Qoshiq", homework: true },
+  ];
+  const exercises = [];
+  for (const e of EXERCISES) {
+    exercises.push(
+      await prisma.exercise.create({
+        data: { ...e, ageFrom: 2, ageTo: 8, createdById: null },
+        select: { id: true, name: true, area: true, homework: true },
+      }),
+    );
+  }
+
+  // Maqsad namunalari — baholashdan keyin qo'yiladigan 3 oylik maqsadlar
+  const GOALS = [
+    "Faol so'z boyligi 20 taga yetsin",
+    "Ikki so'zli ibora paydo bo'lsin",
+    "Mayda motorika: qalam ushlashga tayyorgarlik",
+    "Ko'z kontakti chaqirilganda barqaror bo'lsin",
+    "Tuvaletga mustaqil borsin",
+    "Sensor sezgirlik kamaysin",
+  ];
+
+  // Demo'da dastur hamma bolada emas: real markazda ham mutaxassis uni
+  // asta-sekin to'ldiradi, qismi esa hali baholanmagan bo'ladi
+  const demoClients = await prisma.client.findMany({
+    where: { branch: { isSolo: false } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      specialists: { select: { specialistId: true }, take: 1 },
+      sessions: {
+        where: { status: { in: ["DONE", "NO_SHOW"] } },
+        orderBy: { startsAt: "desc" },
+        take: 3,
+        select: { id: true },
+      },
+    },
+  });
+
+  for (const client of demoClients) {
+    if (!chance(0.75)) continue;
+    const specialistId = client.specialists[0]?.specialistId ?? null;
+
+    // Ikki baholash: 3 oy oldin va shu hafta — dinamika ko'rinib tursin.
+    // Kalitlar src/lib/assessment.ts dagi savol kalitlari.
+    const base = {
+      eyeContact: 1,
+      nameResponse: 1,
+      pointing: 1,
+      jointAttention: 0,
+      speechLevel: 1,
+      activeWords: 4 + Math.floor(rnd() * 6),
+      understanding: 0,
+      echolalia: 1,
+      stims: pick([["Qo'l silkitish"], ["Qo'l silkitish", "Oyoq uchida yurish"], ["Aylanish"]]),
+      tantrums: 1,
+      selfHarm: 2,
+      routines: 1,
+      sensitivity: pick([["Tovush"], ["Tovush", "Ovqat tanlash"], ["Teginish"]]),
+      toilet: 1,
+      eating: 1,
+      sleep: 1,
+      peers: 1,
+      imitation: 1,
+      playType: 1,
+    };
+    const grown = {
+      ...base,
+      // O'sish: bir nechta ko'rsatkich yuqoriga qarab siljiydi
+      eyeContact: base.eyeContact + 1,
+      nameResponse: base.nameResponse + 1,
+      speechLevel: base.speechLevel + 1,
+      activeWords: base.activeWords + 7,
+      understanding: base.understanding + 1,
+      imitation: base.imitation + 1,
+      sleep: 2,
+    };
+
+    const first = new Date();
+    first.setDate(first.getDate() - 95);
+    const second = new Date();
+    second.setDate(second.getDate() - 3);
+
+    await prisma.assessment.create({
+      data: { clientId: client.id, specialistId, at: first, answers: base, note: "Birinchi baholash." },
+    });
+    const latest = await prisma.assessment.create({
+      data: {
+        clientId: client.id,
+        specialistId,
+        at: second,
+        answers: grown,
+        note: "Ko'z kontakti barqarorlashdi, so'z boyligi o'sdi. Charchaganda stimlar qaytadi.",
+        shareWithParent: chance(0.6),
+      },
+      select: { id: true },
+    });
+
+    // Maqsadlar — oxirgi baholashdan; har bir maqsadga 1–2 mashq
+    const goalTitles = [pick(GOALS), pick(GOALS)].filter((g, i, a) => a.indexOf(g) === i);
+    const used = new Set<string>();
+    for (const title of goalTitles) {
+      const goal = await prisma.clientGoal.create({
+        data: { clientId: client.id, title, assessmentId: latest.id },
+        select: { id: true },
+      });
+      for (let i = 0; i < 2; i++) {
+        const ex = pick(exercises);
+        if (used.has(ex.id)) continue;
+        used.add(ex.id);
+        await prisma.clientExercise.create({
+          data: { clientId: client.id, goalId: goal.id, exerciseId: ex.id, homework: ex.homework },
+        });
+      }
+    }
+
+    // O'tgan mashg'ulotlarda nima qilingani — "oxirgi marta" ko'rinishi uchun
+    const assigned = [...used];
+    for (const session of client.sessions) {
+      for (const exerciseId of assigned.slice(0, 2 + Math.floor(rnd() * 2))) {
+        await prisma.sessionExercise.create({
+          data: {
+            sessionId: session.id,
+            exerciseId,
+            result: pick(["DONE", "DONE", "STRUGGLED", "FAILED"]),
+          },
+        });
       }
     }
   }

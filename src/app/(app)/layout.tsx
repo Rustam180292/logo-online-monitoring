@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     items.push({ href: "/slots", label: t("Bo'sh vaqtlar"), icon: "clock" });
     items.push({ href: "/intakes", label: t("Konsultatsiya uchun qabullar"), icon: "door" });
     items.push({ href: "/clients", label: t("Mijozlar"), icon: "users" });
+    items.push({ href: "/exercises", label: t("Mashqlar"), icon: "list" });
     items.push({ href: "/payments", label: t("To'lovlar"), icon: "wallet" });
     items.push({ href: "/reports", label: t("Hisobotlar"), icon: "chart" });
   } else {
@@ -58,6 +59,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       items.push({ href: "/intakes", label: t("Konsultatsiya uchun qabullar"), icon: "door" });
     }
     items.push({ href: "/clients", label: t("Mijozlar"), icon: "users" });
+    // Mashqlar kutubxonasi — mutaxassislarning ishi; qabulxonaga kerak emas
+    if (user.role !== "RECEPTION") {
+      items.push({ href: "/exercises", label: t("Mashqlar"), icon: "list" });
+    }
     if (user.role === "SPECIALIST") {
       items.push({ href: "/earnings", label: t("Pulim"), icon: "wallet" });
     } else if (user.role === "RECEPTION") {

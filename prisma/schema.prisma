@@ -56,6 +56,7 @@ model Branch {
   payouts     SalaryPayout[]
   intakes     Intake[]
   sessionTypes SessionType[]
+  exercises   Exercise[]
 }
 
 /// Tizim foydalanuvchisi. role: OWNER | BRANCH_ADMIN | SPECIALIST | PARENT
@@ -114,6 +115,7 @@ model Specialist {
   sessions Session[]
   payouts  SalaryPayout[]
   intakes  Intake[]
+  assessments Assessment[]
 
   @@index([branchId])
 }
@@ -145,6 +147,9 @@ model Client {
   notifications Notification[]
   services      ClientService[]
   intake        Intake?
+  goals         ClientGoal[]
+  exercises     ClientExercise[]
+  assessments   Assessment[]
 
   @@index([branchId])
   @@index([parentUserId])
@@ -216,6 +221,7 @@ model Session {
   package    Package?   @relation(fields: [packageId], references: [id])
   // Tur o'chirilsa seans qoladi — uning narxi seansning o'zida saqlangan
   sessionType SessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
+  exercises   SessionExercise[]
 
   @@index([startsAt])
   @@index([specialistId, startsAt])
@@ -407,4 +413,122 @@ model ClientService {
   sessionType SessionType @relation(fields: [sessionTypeId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, sessionTypeId])
+}
+
+/// Mashq — markazning umumiy kutubxonasi ("Barmoq gimnastikasi", "K tovushi").
+/// Har bir mutaxassis o'z mashqini qo'shadi va u markazda qoladi: yangi xodim
+/// birinchi kundan tayyor ro'yxat bilan ishlay oladi.
+///
+/// branchId bo'sh — markazniki (hamma filialda); yakka mutaxassisda — uning
+/// o'z filiali. Xizmatlar (`SessionType`) bilan bir xil qoida.
+model Exercise {
+  id          String   @id @default(cuid())
+  branchId    String?
+  name        String
+  /// Yo'nalish: `EXERCISE_AREAS` (src/lib/constants.ts)
+  area        String
+  description String?
+  /// Nima kerak: "Munchoq, ip"
+  equipment   String?
+  /// Qaysi yoshga mos (ixtiyoriy, kutubxonani saralash uchun)
+  ageFrom     Int?
+  ageTo       Int?
+  /// Bolaga qo'shilganda standart holda uyga vazifa bo'lsinmi
+  homework    Boolean  @default(false)
+  /// Mashq o'chirilmaydi: eski mashg'ulotlarda nomi qolishi kerak
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  branch   Branch?           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  clients  ClientExercise[]
+  sessions SessionExercise[]
+
+  @@index([branchId])
+}
+
+/// Bolaning dasturidagi maqsad ("Faol so'z boyligi 20 taga yetsin").
+/// Baholashdan keyin qo'yiladi — mutaxassis "ertaga nima qilsam" degan
+/// savolga shu dastur bilan javob topadi.
+model ClientGoal {
+  id           String   @id @default(cuid())
+  clientId     String
+  title        String
+  /// Qaysi baholashdan olingani (bo'sh bo'lishi mumkin — qo'lda qo'shilgan)
+  assessmentId String?
+  isDone       Boolean  @default(false)
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  client     Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assessment Assessment?      @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  exercises  ClientExercise[]
+
+  @@index([clientId])
+}
+
+/// Bolaga biriktirilgan mashq. Mashg'ulot rejasi shu ro'yxatdan yig'iladi.
+model ClientExercise {
+  id         String   @id @default(cuid())
+  clientId   String
+  /// Qaysi maqsadga ishlaydi (bo'sh — maqsadsiz, "qo'shimcha" mashq)
+  goalId     String?
+  exerciseId String
+  /// Ota-onaning kabinetiga uyga vazifa bo'lib tushadimi
+  homework   Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  client   Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  goal     ClientGoal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  exercise Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  /// Bitta mashq bolada bir marta turadi
+  @@unique([clientId, exerciseId])
+  @@index([clientId])
+}
+
+/// Mashg'ulotda nima qilingani va qanday ketgani. Mutaxassis telefondan
+/// bir bosishda belgilaydi — keyingi safar nimadan boshlashi shundan ko'rinadi.
+model SessionExercise {
+  id         String   @id @default(cuid())
+  sessionId  String
+  exerciseId String
+  /// DONE | STRUGGLED | FAILED (`EXERCISE_RESULTS`)
+  result     String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, exerciseId])
+  @@index([exerciseId])
+}
+
+/// Bolani baholash: ko'z kontakti, nutq darajasi, stimlar va boshqalar.
+/// Maqsadi — dinamikani ko'rsatish: 3 oy oldin nima bo'lgan, hozir nima.
+///
+/// Savollar va javob variantlari kodda (`src/lib/assessment.ts`), javoblar
+/// esa Json: yangi shkala qo'shilsa baza o'zgarmaydi va eski baholashlar
+/// o'z holida qoladi.
+model Assessment {
+  id              String   @id @default(cuid())
+  clientId        String
+  /// Kim baholadi (xodim o'chirilsa baholash qoladi)
+  specialistId    String?
+  at              DateTime @default(now())
+  /// { "eyeContact": 2, "stims": ["hand"], ... } — kalitlar `ASSESSMENT` da
+  answers         Json
+  note            String?
+  /// Qisqacha xulosa ota-onaning kabinetida ko'rinsinmi
+  shareWithParent Boolean  @default(false)
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  client     Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  specialist Specialist?  @relation(fields: [specialistId], references: [id], onDelete: SetNull)
+  goals      ClientGoal[]
+
+  @@index([clientId, at])
 }

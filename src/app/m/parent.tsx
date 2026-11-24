@@ -2,10 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   BILLABLE_STATUSES,
+  EXERCISE_AREAS,
   PARENT_CANCEL_MIN_HOURS,
   PAYMENT_METHODS,
   SESSION_STATUSES,
   SPECIALIZATIONS,
+  type ExerciseArea,
   type PaymentMethod,
   type SessionStatus,
   type Specialization,
@@ -51,8 +53,18 @@ export async function ParentApp({
   // Hamma narsa bitta to'lqinda va hamma farzand uchun birdaniga olinadi:
   // baza uzoqda, har bir ketma-ket so'rov kabinetni sekinlashtiradi.
   // Farzand tanlangach qolgani xotirada ajratiladi (bolalar 1-2 ta bo'ladi).
-  const [children, upcomingAll, historyAll, paymentsAll, teamAll, doneAll, paidAll, earnedAll] =
-    await Promise.all([
+  const [
+    children,
+    upcomingAll,
+    historyAll,
+    paymentsAll,
+    teamAll,
+    doneAll,
+    paidAll,
+    earnedAll,
+    homeworkAll,
+    sharedAll,
+  ] = await Promise.all([
       prisma.client.findMany({
         where: { parentUserId: userId },
         orderBy: { fullName: "asc" },
@@ -101,6 +113,19 @@ export async function ParentApp({
         where: { ...mine, status: { in: BILLABLE_STATUSES } },
         _sum: { price: true },
       }),
+      // Uyga vazifa: mutaxassis dasturda "uyga vazifa" deb belgilagan mashqlar
+      prisma.clientExercise.findMany({
+        where: { ...mine, homework: true, isActive: true, exercise: { isActive: true } },
+        orderBy: { createdAt: "asc" },
+        include: { exercise: { select: { name: true, description: true, area: true } } },
+      }),
+      // Baholash xulosasi — faqat mutaxassis ko'rsatishga ruxsat berganlari
+      prisma.assessment.findMany({
+        where: { ...mine, shareWithParent: true },
+        orderBy: { at: "desc" },
+        take: 10,
+        select: { id: true, clientId: true, at: true, note: true },
+      }),
     ]);
 
   if (children.length === 0) {
@@ -123,6 +148,8 @@ export async function ParentApp({
   const history = ofChild(historyAll).slice(0, 15);
   const payments = ofChild(paymentsAll).slice(0, 50);
   const team = ofChild(teamAll);
+  const homework = ofChild(homeworkAll);
+  const shared = ofChild(sharedAll)[0] ?? null;
   const doneCount = doneAll.find((r) => r.clientId === child.id)?._count._all ?? 0;
   const cancelDeadline = new Date(now.getTime() + PARENT_CANCEL_MIN_HOURS * 3_600_000);
 
@@ -230,6 +257,37 @@ export async function ParentApp({
                   : t("hisob teng")}
             </p>
           </section>
+
+          {/* Uyga vazifa — ota-ona uchun kabinetning eng amaliy qismi:
+              mashg'ulotdan keyin uyda nima qilish kerakligi */}
+          {homework.length > 0 ? (
+            <section className="app-card p-3" data-testid="parent-homework">
+              <p className="mb-1.5 text-xs app-muted">{t("Uyga vazifa")}</p>
+              <ul className="space-y-2">
+                {homework.map((h) => (
+                  <li key={h.id}>
+                    <p className="text-sm font-medium">{h.exercise.name}</p>
+                    <p className="text-xs app-muted">
+                      {t(EXERCISE_AREAS[h.exercise.area as ExerciseArea])}
+                    </p>
+                    {h.exercise.description ? (
+                      <p className="mt-0.5 text-sm">{h.exercise.description}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* Mutaxassisning xulosasi — ichki izoh emas, ataylab ko'rsatilgani */}
+          {shared && shared.note ? (
+            <section className="app-card p-3" data-testid="parent-assessment">
+              <p className="text-xs app-muted">
+                {t("Mutaxassis xulosasi")} · {dateShort(shared.at)}
+              </p>
+              <p className="mt-1 text-sm">{shared.note}</p>
+            </section>
+          ) : null}
 
           <section className="app-card p-3">
             <p className="text-xs app-muted">{t("Tug'ilgan sana")}</p>

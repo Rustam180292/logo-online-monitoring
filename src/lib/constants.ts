@@ -124,3 +124,37 @@ export const INTAKE_RESULT_STYLE: Record<IntakeResult, string> = {
   THINKING: "bg-amber-50 text-amber-700 ring-amber-200",
   REFUSED: "bg-rose-50 text-rose-700 ring-rose-200",
 };
+
+/** Mashq yo'nalishi: kutubxona shu bo'yicha saralanadi */
+export const EXERCISE_AREAS = {
+  FINE_MOTOR: "Mayda motorika",
+  GROSS_MOTOR: "Yirik motorika",
+  ARTICULATION: "Artikulyatsiya",
+  SPEECH: "Nutq",
+  SENSORY: "Sensorika",
+  COMMUNICATION: "Muloqot",
+  PLAY: "O'yin",
+  DAILY: "Kundalik ko'nikma",
+} as const;
+
+export type ExerciseArea = keyof typeof EXERCISE_AREAS;
+export const EXERCISE_AREA_KEYS = Object.keys(EXERCISE_AREAS) as ExerciseArea[];
+
+/**
+ * Mashg'ulotda mashq qanday ketdi. Uch variant ataylab: mutaxassis telefonda
+ * bir bosishda belgilashi kerak, yozib o'tirmasligi uchun.
+ */
+export const EXERCISE_RESULTS = {
+  DONE: "Bajardi",
+  STRUGGLED: "Qiynaldi",
+  FAILED: "Qila olmadi",
+} as const;
+
+export type ExerciseResult = keyof typeof EXERCISE_RESULTS;
+export const EXERCISE_RESULT_KEYS = Object.keys(EXERCISE_RESULTS) as ExerciseResult[];
+
+export const EXERCISE_RESULT_STYLE: Record<ExerciseResult, string> = {
+  DONE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  STRUGGLED: "bg-amber-50 text-amber-700 ring-amber-200",
+  FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
+};

@@ -182,6 +182,13 @@ async function SessionList({
           </div>
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {/* Reja — mashg'ulotda nima qilish kerakligi (dasturdan) */}
+            <Link
+              href={`/m/mashgulot/${s.id}`}
+              className="app-card rounded-lg border border-black/10 px-3 py-1.5 text-xs font-semibold"
+            >
+              {t("Reja")}
+            </Link>
             {s.status === "PLANNED" ? (
               <>
                 <MarkButton id={s.id} status="DONE" label={t("O'tdi")} tone="good" />

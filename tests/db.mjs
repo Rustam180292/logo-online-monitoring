@@ -27,6 +27,7 @@ const IDENTIFIERS = [
   // jadvallar
   "SalaryPayout", "ClientService", "SessionType", "Notification", "Assignment", "Specialist", "Payment",
   "Package", "Session", "Client", "Branch", "User", "LinkCode", "Intake", "Settings",
+  "SessionExercise", "ClientExercise", "ClientGoal", "Assessment", "Exercise",
   // ustunlar va taxalluslar
   "telegramUsername", "pricePerSession", "parentUserId", "totalSessions",
   "specialistId", "salaryPercent", "telegramId", "purchasedAt", "parentPhone",
@@ -36,6 +37,8 @@ const IDENTIFIERS = [
   "defaultSalaryPercent", "workStartHour", "workEndHour", "slotMinutes",
   "defaultPrice", "workDays", "centerName", "timezoneShiftedAt", "soloInviteCode", "isSolo", "logoMime", "logoData", "logoUpdatedAt",
   "userId", "paidAt", "sentAt", "durationMin", "sessionTypeId", "brandName",
+  "exerciseId", "clientExerciseId", "assessmentId", "goalId", "shareWithParent", "homework",
+  "equipment", "ageFrom", "ageTo", "isDone",
   "lunchStartMin", "lunchEndMin", "sheetsUrl", "sheetsSyncedAt", "sheetsError", "sheetsDirtyAt", "sheetsLockAt",
 ].sort((a, b) => b.length - a.length);
 

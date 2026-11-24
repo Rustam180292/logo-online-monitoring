@@ -1124,7 +1124,11 @@ if (await payRow.count()) {
       // Markazda abonement yo'q: jadvalda "Abonement" ustuni, sahifada
       // qarzdorlik va qarzdorlar ro'yxati ko'rinmaydi
       const head = (await page.locator("thead").first().innerText()).toUpperCase();
-      const body = await page.locator("main").innerText();
+      // Odam yozgan izohda "abonement" so'zi uchrashi mumkin (eski to'lovlar) —
+      // tekshiruv interfeysga tegishli, izoh matniga emas
+      const notes = await page.locator("main tbody span.text-slate-400").allInnerTexts();
+      let body = await page.locator("main").innerText();
+      for (const n of notes) body = body.split(n).join(" ");
       check(
         "To'lovlar sahifasida abonement va qarzdorlik yo'q",
         !head.includes("ABONEMENT") && !head.includes("YO'NALISH") &&
@@ -2221,6 +2225,15 @@ if (await payRow.count()) {
       sheets.Mijozlar.length - 1 === centerClients,
     sheets ? `${sheets.Mijozlar.length - 1} / ${centerClients}` : "kelmadi",
   );
+  // Baholash — bolaning tashxisi va xulqi haqidagi ma'lumot: u markaz
+  // egasining Google jadvaliga chiqmaydi
+  check(
+    "Baholash va dastur Google jadvalga tushmaydi",
+    Boolean(sheets) &&
+      !Object.keys(sheets).some((k) => /baholash|mashq|dastur/i.test(k)) &&
+      !JSON.stringify(sheets ?? {}).includes("Ko'z kontakti"),
+    Object.keys(sheets ?? {}).join(", "),
+  );
   check(
     "Jadvalga parol yuborilmaydi, telefon matn bo'lib qoladi",
     !JSON.stringify(sheets ?? {}).includes("passwordHash") &&
@@ -2641,6 +2654,187 @@ if (!reception) {
   await page.goto(`${BASE}/login`);
   await page.waitForLoadState("networkidle");
   check("Oddiy brauzerda login sahifasi ochiladi", new URL(page.url()).pathname === "/login" && (await page.locator("#phone").count()) === 1);
+}
+
+/* 10x. Baholash, dastur va mashqlar kutubxonasi */
+{
+  await login(owner.phone);
+
+  /* --- Kutubxona --- */
+  await page.goto(`${BASE}/exercises`);
+  await page.waitForLoadState("networkidle");
+  const libCount = await page.locator('[data-testid="exercise-list"] > li').count();
+  check("Mashqlar kutubxonasi ochiladi", libCount > 0, String(libCount));
+
+  const exName = `Sinov mashqi ${Date.now()}`;
+  await page.fill('[data-testid="exercise-new"] input[name="name"]', exName);
+  await page.selectOption('[data-testid="exercise-new"] select[name="area"]', "SPEECH");
+  await page.fill('[data-testid="exercise-new"] textarea[name="description"]', "Sinov tavsifi");
+  await page.click('[data-testid="exercise-new"] button[type=submit]');
+  check(
+    "Mashq kutubxonaga qo'shiladi",
+    await waitUntil(async () => (await count("SELECT COUNT(*) AS n FROM Exercise WHERE name = ?", exName)) === 1),
+  );
+  const ex = await one("SELECT id, branchId, area FROM Exercise WHERE name = ?", exName);
+  check("Markaz mashqi filialsiz — hamma filialga", ex?.branchId === null, String(ex?.branchId));
+
+  /* --- Baholash --- */
+  const kid = await one(
+    `SELECT c.id, c.fullName FROM Client c
+       JOIN Branch b ON b.id = c.branchId
+       JOIN Assignment a ON a.clientId = c.id
+      WHERE b.isSolo = false AND c.status = 'ACTIVE'
+      GROUP BY c.id, c.fullName ORDER BY c.fullName LIMIT 1`,
+  );
+  check("Baholash uchun mijoz topildi", Boolean(kid));
+
+  const before = await count("SELECT COUNT(*) AS n FROM Assessment WHERE clientId = ?", kid.id);
+  await page.goto(`${BASE}/clients/${kid.id}/baholash/yangi`);
+  await page.waitForLoadState("networkidle");
+  await page.locator('label:has(input[name="a_eyeContact"][value="3"])').click();
+  await page.fill('input[name="a_activeWords"]', "21");
+  await page.locator('label:has(input[name="a_stims"][value="Aylanish"])').click();
+  const goalTitle = `Sinov maqsadi ${Date.now()}`;
+  await page.locator('input[name="goal"]').first().fill(goalTitle);
+  await page.check('input[name="shareWithParent"]');
+  await page.click('button[type=submit]');
+  check(
+    "Baholash saqlanadi",
+    await waitUntil(
+      async () => (await count("SELECT COUNT(*) AS n FROM Assessment WHERE clientId = ?", kid.id)) === before + 1,
+    ),
+  );
+  const saved = await one(
+    "SELECT answers, shareWithParent FROM Assessment WHERE clientId = ? ORDER BY at DESC LIMIT 1",
+    kid.id,
+  );
+  const answers = saved?.answers ?? {};
+  check(
+    "Javoblar o'z kalitlari bilan saqlanadi",
+    answers.eyeContact === 3 && answers.activeWords === 21 && (answers.stims ?? []).includes("Aylanish"),
+    JSON.stringify(answers).slice(0, 90),
+  );
+  check(
+    "Baholash bilan birga maqsad qo'yiladi",
+    (await count("SELECT COUNT(*) AS n FROM ClientGoal WHERE clientId = ? AND title = ?", kid.id, goalTitle)) === 1,
+  );
+
+  await page.goto(`${BASE}/clients/${kid.id}/baholash`);
+  await page.waitForLoadState("networkidle");
+  const assessText = await page.locator("main").innerText();
+  check(
+    "Baholash sahifasida dinamika va maqsad ko'rinadi",
+    assessText.includes("Dinamika") && assessText.includes(goalTitle),
+  );
+
+  /* --- Dastur --- */
+  await page.goto(`${BASE}/clients/${kid.id}/dastur`);
+  await page.waitForLoadState("networkidle");
+  const addBox = page.locator('details:has(select[name="exerciseId"])').first();
+  await addBox.locator("summary").click();
+  await addBox.locator('select[name="exerciseId"]').selectOption(ex.id);
+  await addBox.locator("button[type=submit]").click();
+  check(
+    "Mashq bolaning dasturiga qo'shiladi",
+    await waitUntil(
+      async () =>
+        (await count(
+          "SELECT COUNT(*) AS n FROM ClientExercise WHERE clientId = ? AND exerciseId = ? AND isActive = true",
+          kid.id,
+          ex.id,
+        )) === 1,
+    ),
+  );
+
+  const ce = await one(
+    "SELECT id, homework FROM ClientExercise WHERE clientId = ? AND exerciseId = ?",
+    kid.id,
+    ex.id,
+  );
+  await page.goto(`${BASE}/clients/${kid.id}/dastur`);
+  await page.waitForLoadState("networkidle");
+  await page
+    .locator(`form:has(input[name="clientExerciseId"][value="${ce.id}"]) button`)
+    .first()
+    .click();
+  check(
+    "Uyga vazifa belgisi almashadi",
+    await waitUntil(
+      async () => (await one("SELECT homework FROM ClientExercise WHERE id = ?", ce.id))?.homework === !ce.homework,
+    ),
+  );
+
+  /* --- Qabulxona xodimiga yopiq --- */
+  await login(reception.phone);
+  await denied("Qabulxonaga mashqlar kutubxonasi yopiq", "/exercises", "Mashqlar kutubxonasi");
+  // Sahifa oqim bilan yuboriladi (loading.tsx), shuning uchun javob kodi 200
+  // bo'lib qoladi — "topilmadi" sahifasi chizilganini matnidan tekshiramiz
+  const notFound = async (label, path) => {
+    await page.goto(`${BASE}${path}`);
+    await page.waitForLoadState("networkidle");
+    const body = await page.locator("main").innerText();
+    check(label, body.includes("Topilmadi") && !body.includes("Dinamika"), body.split("\n")[0]);
+  };
+  await notFound("Qabulxonaga baholash yopiq", `/clients/${kid.id}/baholash`);
+  await notFound("Qabulxonaga dastur yopiq", `/clients/${kid.id}/dastur`);
+  await page.goto(`${BASE}/clients/${kid.id}`);
+  await page.waitForLoadState("networkidle");
+  check(
+    "Qabulxona kartasida Baholash/Dastur bo'limi ko'rinmaydi",
+    (await page.locator('[data-testid="client-tabs"]').count()) === 0,
+  );
+
+  /* --- Mutaxassisning telefoni --- */
+  const sp = await one(
+    `SELECT u.phone, s.id AS sessionId FROM Session s
+       JOIN Specialist sp ON sp.id = s.specialistId
+       JOIN User u ON u.id = sp.userId
+      WHERE s.clientId = ? ORDER BY s.startsAt DESC LIMIT 1`,
+    kid.id,
+  );
+  await login(sp.phone);
+  await page.goto(`${BASE}/m/mashgulot/${sp.sessionId}`);
+  await page.waitForLoadState("networkidle");
+  check(
+    "Mutaxassis telefonida mashg'ulot rejasi ochiladi",
+    (await page.locator('[data-testid="session-plan"] > div').count()) > 0,
+    page.url(),
+  );
+  await page
+    .locator(
+      `form:has(input[name="exerciseId"][value="${ex.id}"]):has(input[name="result"][value="DONE"]) button`,
+    )
+    .first()
+    .click();
+  check(
+    "Mashq natijasi bir bosishda belgilanadi",
+    await waitUntil(
+      async () =>
+        (await one("SELECT result FROM SessionExercise WHERE sessionId = ? AND exerciseId = ?", sp.sessionId, ex.id))
+          ?.result === "DONE",
+    ),
+  );
+
+  // Begona bolaning dasturi mutaxassisga ko'rinmaydi — manzilni qo'lda
+  // yozsa ham
+  const foreign = await one(
+    `SELECT c.id FROM Client c
+      WHERE c.id NOT IN (
+        SELECT a.clientId FROM Assignment a
+          JOIN Specialist s ON s.id = a.specialistId
+          JOIN User u ON u.id = s.userId
+         WHERE u.phone = ?
+      ) LIMIT 1`,
+    sp.phone,
+  );
+  await page.goto(`${BASE}/clients/${foreign.id}/dastur`);
+  await page.waitForLoadState("networkidle");
+  const foreignBody = await page.locator("main").innerText();
+  check(
+    "Begona bolaning dasturi mutaxassisga yopiq",
+    foreignBody.includes("Topilmadi") && !foreignBody.includes("Maqsadsiz mashqlar"),
+    foreignBody.split("\n")[0],
+  );
 }
 
 /* 11. Ota-ona parol bilan kira olmaydi — faqat Telegram bot orqali */

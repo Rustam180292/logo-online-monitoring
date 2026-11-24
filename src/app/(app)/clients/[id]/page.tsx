@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { clientScope, requireUser, NOT_SOLO, isFrontDesk, isSolo } from "@/lib/auth";
+import { canSeeProgram } from "@/lib/program";
 import { branchTypeScope } from "@/lib/session-types";
 import {
   CLIENT_STATUSES,
@@ -44,6 +45,7 @@ import {
   unassignSpecialist,
 } from "../actions";
 import { ClientEditForm } from "../edit-form";
+import { ClientTabs } from "./tabs";
 import { getT } from "@/lib/i18n/server";
 
 const NOTIFICATION_KINDS: Record<string, string> = {
@@ -152,6 +154,10 @@ export default async function ClientPage({
           </Link>
         }
       />
+
+      {/* Qabulxona xodimiga baholash va dastur ko'rinmaydi — uning ishi
+          jadval va to'lov */}
+      {canSeeProgram(user) ? <ClientTabs clientId={client.id} active="card" /> : null}
 
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">

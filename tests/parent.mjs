@@ -476,6 +476,61 @@ if (!cookieMatch) {
     );
   }
 
+  /* 12b. Uyga vazifa va mutaxassisning xulosasi */
+  {
+    const tag = Date.now().toString(36);
+    const exId = `ex${tag}`;
+    const ceId = `ce${tag}`;
+    const asId = `as${tag}`;
+    const exName = `Uy mashqi ${tag}`;
+    const summary = `Sinov xulosasi ${tag}`;
+    await all(
+      `INSERT INTO Exercise (id, name, area, description, homework, isActive, createdAt)
+       VALUES (?, ?, 'SPEECH', 'Kuniga 5 daqiqa', true, true, NOW())`,
+      exId,
+      exName,
+    );
+    await all(
+      `INSERT INTO ClientExercise (id, clientId, exerciseId, homework, isActive, createdAt)
+       VALUES (?, ?, ?, true, true, NOW())`,
+      ceId,
+      target.clientId,
+      exId,
+    );
+    // Mutaxassis "ota-onaga ko'rsatilsin" deb belgilagan xulosa
+    await all(
+      `INSERT INTO Assessment (id, clientId, at, answers, note, shareWithParent, createdAt)
+       VALUES (?, ?, NOW(), '{}'::jsonb, ?, true, NOW())`,
+      asId,
+      target.clientId,
+      summary,
+    );
+
+    await page.goto(`${BASE}/tg/app?tab=child`);
+    await page.waitForLoadState("networkidle");
+    const childBox = await page.locator('[data-testid="parent-child"]').innerText();
+    check(
+      "Ota-ona uyga vazifani ko'radi",
+      childBox.includes(exName) && childBox.includes("Kuniga 5 daqiqa"),
+      childBox.replace(/\n/g, " | ").slice(0, 120),
+    );
+    check("Ota-onaga mutaxassis xulosasi ko'rinadi", childBox.includes(summary));
+
+    // Ko'rsatilmasin deb belgilangan baholash kabinetga chiqmasligi kerak
+    const hidden = `Yashirin xulosa ${tag}`;
+    await all("UPDATE Assessment SET shareWithParent = false, note = ? WHERE id = ?", hidden, asId);
+    await page.goto(`${BASE}/tg/app?tab=child`);
+    await page.waitForLoadState("networkidle");
+    check(
+      "Ko'rsatilmaydigan baholash kabinetda yo'q",
+      !(await page.locator("main").innerText()).includes(hidden),
+    );
+
+    await all("DELETE FROM Assessment WHERE id = ?", asId);
+    await all("DELETE FROM ClientExercise WHERE id = ?", ceId);
+    await all("DELETE FROM Exercise WHERE id = ?", exId);
+  }
+
   /* 13. Mutaxassislar va qo'ng'iroq */
   let specialistUser;
   {

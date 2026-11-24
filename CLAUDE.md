@@ -121,14 +121,14 @@ Shuning uchun:
 
 ## Testlar
 
-Brauzerdagi uchidan-uchiga tekshiruvlar, jami 338 ta. Haqiqiy `next build` ustida
+Brauzerdagi uchidan-uchiga tekshiruvlar, jami 359 ta. Haqiqiy `next build` ustida
 ishlaydi va natijani to'g'ridan-to'g'ri bazadan tekshiradi.
 
 ```bash
 npm run build && npm start -- -p 3100    # boshqa terminalda
-node tests/smoke.mjs      # CRM, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati (236)
+node tests/smoke.mjs      # CRM, rollar, qabullar, filiallar, bo'sh vaqtlar, sozlamalar, zaxira, Telegram holati, kunlik to'lov, mijozni o'chirish, to'lovni tuzatish, panel jadvallari, vaqt zonasi, yakka mutaxassis, PWA, kanalga e'lon, Telegram'da login yopiq, xizmatlar, abonementsiz hisob, egani tahrirlash, mijoz formasi, yakka sozlamalari, qo'shish oynasi yopilishi, ish vaqti va tushlik, Google Sheets zaxira (jonli), mijozlar puli va holati, baholash, dastur va mashqlar kutubxonasi (254)
 node tests/telegram.mjs   # bog'lanish, imzo, mutaxassis Mini App (19)
-node tests/parent.mjs     # ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob (34)
+node tests/parent.mjs     # ota-ona kabineti, eslatmalar, to'lovlar, mutaxassislar, bekor qilish, Farzandim, tun/kun, Telegram'dan tashqari kirish yo'q, yakka logoped mijozi, hisob-kitob, uyga vazifa (37)
 node tests/prefs.mjs      # tun/kun rejimi, til, tarjima to'liqligi, logotip, ilova belgisi, tepa panel (49)
 ```
 
@@ -255,6 +255,47 @@ yozib tasdiqlanadi):
 Yangi jadval qo'shsangiz, uni `prisma/tables.ts` ga ham qo'shing — aks holda
 `db:backup` uni zaxiraga olmaydi va `db:seed` tozalashda chet el kaliti xatosi
 beradi.
+
+## Baholash va dastur
+
+Pedagogik qism: bolani baholash, 3 oylik maqsadlar va har bir maqsadga
+ishlaydigan mashqlar. Maqsadi — mutaxassis "ertaga nima qilaman" degan
+savolga ilovadan javob topishi va dinamika raqamda ko'rinishi.
+
+- **Mashqlar kutubxonasi** (`Exercise`, `/exercises`) — markazning umumiy
+  boyligi: mutaxassis mashqni bir marta yozadi, keyin uni istagan bolaning
+  dasturiga qo'shadi. Doira xizmatlarnikidek: markaz mashqlarida `branchId`
+  bo'sh, yakka mutaxassisnikida — uning filiali (`exerciseScope`,
+  `branchExerciseScope`, `src/lib/program.ts`). Mashq o'chirilmaydi,
+  `isActive=false` bo'ladi (eski mashg'ulotlarda nomi qolsin).
+- **Dastur** (`ClientGoal` + `ClientExercise`, `/clients/<id>/dastur`) —
+  bolaning maqsadlari va ularga biriktirilgan mashqlar. Maqsad o'chsa
+  mashqlar yo'qolmaydi, "maqsadsiz" ro'yxatga tushadi (`onDelete: SetNull`).
+- **Mashg'ulot rejasi** (`/m/mashgulot/<seans>`) — mutaxassisning
+  telefonidagi asosiy ekran: reja dasturdan o'zi yig'iladi, har bir mashq
+  "Bajardi / Qiynaldi / Qila olmadi" bilan bir bosishda belgilanadi
+  (`SessionExercise`). Tartibni `getPlanRows` beradi: avval hali
+  qilinmaganlar, keyin eng uzoq vaqt qilinmaganlar — bu majburiyat emas,
+  taklif.
+- **Baholash** (`Assessment`, `/clients/<id>/baholash`) — shkalalar bo'yicha
+  savollar. Savollar bazada emas, kodda (`src/lib/assessment.ts`), javoblar
+  esa `Json`: shkala qo'shilsa baza o'zgarmaydi. **Kalitni
+  (`eyeContact` kabi) hech qachon o'zgartirmang** va variantni ro'yxat
+  o'rtasiga qo'shmang — eski baholashlar javobni tartib raqami bilan
+  saqlagan. Shkala variantlari doim "yomondan yaxshiga" tartibda: dinamika
+  chizig'i shunga tayanadi.
+- Yangi baholash formasida oldingi javoblar tanlab qo'yiladi — mutaxassis
+  faqat o'zgarganini bosadi (2–3 daqiqa). Formadagi "Keyingi 3 oy
+  maqsadlari" to'g'ridan-to'g'ri dasturga tushadi.
+- **Kim ko'radi**: shu bolaga biriktirilgan mutaxassis va rahbar (ega,
+  filial admini, yakka) — `canSeeProgram` va `clientScope` ikkovi birga.
+  **Qabulxona xodimiga yopiq** (uning ishi jadval va to'lov), ota-onaga esa
+  faqat ikki narsa ko'rinadi: "uyga vazifa" deb belgilangan mashqlar va
+  mutaxassis "ota-onaga ko'rsatilsin" deb belgilagan baholash xulosasi
+  (`Assessment.shareWithParent`).
+- **Google jadvalga tushmaydi** (`buildSheets` ga qo'shilmagan): bu bolaning
+  tashxisi va xulqi haqidagi ma'lumot, markazning ochiq jadvalida turmasligi
+  kerak.
 
 ## Ota-ona kabineti (Telegram Mini App)
 
