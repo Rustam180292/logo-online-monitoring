@@ -90,6 +90,15 @@ export default function MaketAgenda() {
           <p className="text-xs font-semibold">Dastur maqsadi (3 oy)</p>
           <p className="mt-0.5 text-sm">20 ta faol so&apos;z · ikki so&apos;zli ibora · mayda motorika</p>
         </div>
+        {/* Birinchi g'oya — baholash — shu yerda kundalik ishga ulanadi */}
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-100 p-3">
+          <p className="text-sm text-amber-900">
+            Oxirgi baholash <b>3 oy oldin</b> — yangilash vaqti keldi
+          </p>
+          <span className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white">
+            Baholash
+          </span>
+        </div>
       </div>
 
       <p className="mb-2 text-sm font-semibold">

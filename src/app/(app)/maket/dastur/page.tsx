@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card, PageHeader, btn, btnPrimary, card, td, th } from "@/components/ui";
-import { MaketBelgisi } from "../parts";
+import { KartaTablari, MaketEkranlari, MaketBelgisi } from "../parts";
 
 /* MAKET — mijoz kartasidagi "Dastur" bo'limi. Ma'lumot qo'lda yozilgan. */
 
@@ -61,20 +61,7 @@ export default function MaketDastur() {
         }
       />
 
-      <div className="mb-5 flex gap-1 overflow-x-auto">
-        {["Umumiy", "Mashg'ulotlar", "To'lovlar", "Baholash", "Dastur"].map((t) => (
-          <span
-            key={t}
-            className={
-              t === "Dastur"
-                ? "shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white"
-                : "shrink-0 rounded-lg px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400"
-            }
-          >
-            {t}
-          </span>
-        ))}
-      </div>
+      <KartaTablari faol="Dastur" />
 
       {dastur.map((d) => (
         <Card
@@ -167,12 +154,18 @@ export default function MaketDastur() {
 
       <div className={`${card} mt-5 p-4`}>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Mashqlar markazning umumiy kutubxonasidan olinadi —{" "}
+          Maqsadlar{" "}
+          <Link href="/maket" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+            12.11 dagi baholashdan
+          </Link>{" "}
+          olingan. Mashqlar markazning umumiy kutubxonasidan —{" "}
           <Link href="/maket/mashqlar" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
             Mashqlar kutubxonasi →
           </Link>
         </p>
       </div>
+
+      <MaketEkranlari />
     </>
   );
 }

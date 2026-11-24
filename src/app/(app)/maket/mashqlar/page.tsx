@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Badge, Card, PageHeader, btn, btnPrimary, input, td, th } from "@/components/ui";
-import { MaketBelgisi } from "../parts";
+import { MaketEkranlari, MaketBelgisi } from "../parts";
 
 /* MAKET — markazning umumiy mashqlar kutubxonasi. Ma'lumot qo'lda yozilgan. */
 
@@ -141,6 +141,8 @@ export default function MaketMashqlar() {
           </div>
         </Card>
       </div>
+    
+      <MaketEkranlari />
     </>
   );
 }

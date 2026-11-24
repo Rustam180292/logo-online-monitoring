@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { card } from "@/components/ui";
 
@@ -87,6 +88,65 @@ export function MaketBelgisi({ children }: { children: ReactNode }) {
   return (
     <div className={`${card} mb-5 border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950`}>
       <p className="text-sm text-amber-900 dark:text-amber-200">{children}</p>
+    </div>
+  );
+}
+
+/* Mijoz kartasidagi bo'limlar. Maketda faqat "Baholash" va "Dastur" ishlaydi. */
+export function KartaTablari({ faol }: { faol: "Baholash" | "Dastur" }) {
+  const tablar = [
+    { nom: "Umumiy", href: null },
+    { nom: "Mashg'ulotlar", href: null },
+    { nom: "To'lovlar", href: null },
+    { nom: "Baholash", href: "/maket" },
+    { nom: "Dastur", href: "/maket/dastur" },
+  ];
+  const uslub = (f: boolean) =>
+    f
+      ? "shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white"
+      : "shrink-0 rounded-lg px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400";
+  return (
+    <div className="mb-5 flex gap-1 overflow-x-auto">
+      {tablar.map((t) =>
+        t.href ? (
+          <Link key={t.nom} href={t.href} className={uslub(t.nom === faol)}>
+            {t.nom}
+          </Link>
+        ) : (
+          <span key={t.nom} className={uslub(false)}>
+            {t.nom}
+          </span>
+        ),
+      )}
+    </div>
+  );
+}
+
+/* Maketning hamma ekranlari — mutaxassisga ko'rsatganda bosib yurish uchun */
+export function MaketEkranlari() {
+  const ekranlar = [
+    { nom: "Baholash", href: "/maket" },
+    { nom: "Yangi baholash", href: "/maket/yangi" },
+    { nom: "Dastur", href: "/maket/dastur" },
+    { nom: "Mashqlar kutubxonasi", href: "/maket/mashqlar" },
+    { nom: "Mutaxassis telefoni", href: "/m/maket" },
+  ];
+  return (
+    <div className={`${card} mt-5 p-4`}>
+      <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        Maket ekranlari
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {ekranlar.map((e) => (
+          <Link
+            key={e.href}
+            href={e.href}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300"
+          >
+            {e.nom}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card, PageHeader, btn, btnPrimary, card, td, th } from "@/components/ui";
-import { Bar, MaketBelgisi } from "./parts";
+import { Bar, KartaTablari, MaketEkranlari, MaketBelgisi } from "./parts";
 
 /* MAKET — mijoz kartasidagi "Baholash" bo'limi. Ma'lumot qo'lda yozilgan. */
 
@@ -37,20 +37,7 @@ export default function MaketBaholash() {
         }
       />
 
-      <div className="mb-5 flex gap-1 overflow-x-auto">
-        {["Umumiy", "Mashg'ulotlar", "To'lovlar", "Baholash"].map((t) => (
-          <span
-            key={t}
-            className={
-              t === "Baholash"
-                ? "shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white"
-                : "shrink-0 rounded-lg px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400"
-            }
-          >
-            {t}
-          </span>
-        ))}
-      </div>
+      <KartaTablari faol="Baholash" />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card title="Tashxis va tibbiy ma'lumot" className="lg:col-span-2">
@@ -173,11 +160,20 @@ export default function MaketBaholash() {
       </Card>
 
       <div className={`${card} mt-5 p-4`}>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-slate-700 dark:text-slate-300">
+          Shu baholashdan chiqqan maqsadlar{" "}
+          <Link href="/maket/dastur" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+            bolaning dasturiga
+          </Link>{" "}
+          ko'chiriladi — mutaxassis har kuni nima qilishini o'sha yerdan oladi.
+        </p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           Baholashni faqat shu mijozga biriktirilgan mutaxassis va markaz egasi ko'radi.
           Qabulxona xodimiga va Google jadvalga tushmaydi.
         </p>
       </div>
+
+      <MaketEkranlari />
     </>
   );
 }
