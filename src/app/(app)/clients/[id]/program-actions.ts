@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { clientScope, requireUser, sessionScope, type CurrentUser } from "@/lib/auth";
 import { assertExerciseFitsBranch, canSeeProgram } from "@/lib/program";
@@ -177,6 +178,9 @@ async function addAssessmentImpl(formData: FormData) {
 
   refresh(clientId);
   await setFlash("Baholash saqlandi.", "ok");
+  // Saqlagandan keyin forma emas, natija ko'rinsin: mutaxassis dinamikani
+  // darhol ko'radi va "saqlandimi?" deb ikkilanmaydi
+  redirect(`/clients/${clientId}/baholash`);
 }
 
 async function removeAssessmentImpl(formData: FormData) {

@@ -51,7 +51,7 @@ export default async function SessionPlanPage({ params }: { params: Promise<{ id
   if (!session) notFound();
 
   const [rows, goals, lastAssessment, library] = await Promise.all([
-    getPlanRows(session.clientId),
+    getPlanRows(session.clientId, session.id),
     prisma.clientGoal.findMany({
       where: { clientId: session.clientId, isDone: false },
       orderBy: { createdAt: "asc" },

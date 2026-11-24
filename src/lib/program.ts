@@ -76,8 +76,14 @@ export type PlanRow = {
  * ketgan" qo'shilgan. Tartib — taklif tartibi: avval hali qilinmaganlar,
  * keyin eng uzoq vaqt qilinmaganlar. Shu bilan mutaxassis "ertaga nima
  * qilsam" degan savolga ro'yxatning boshidan javob topadi.
+ *
+ * `exceptSessionId` — mashg'ulot davom etayotgan seans. Uning o'z belgilari
+ * hisobga olinmaydi: aks holda mutaxassis mashqni belgilagan zahoti u
+ * "bugun qilingan" bo'lib ro'yxat oxiriga sakrab ketardi va "oxirgi marta"
+ * deb o'zining hozirgi belgisi ko'rinardi.
  */
-export async function getPlanRows(clientId: string): Promise<PlanRow[]> {
+export async function getPlanRows(clientId: string, exceptSessionId?: string): Promise<PlanRow[]> {
+  const except = exceptSessionId ?? "";
   const rows = await prisma.$queryRaw<PlanRow[]>`
     SELECT ce."id" AS "clientExerciseId", e."id" AS "exerciseId", e."name", e."area",
            e."description", ce."homework", ce."goalId", g."title" AS "goalTitle",
@@ -90,6 +96,7 @@ export async function getPlanRows(clientId: string): Promise<PlanRow[]> {
           FROM "SessionExercise" se
           JOIN "Session" s ON s."id" = se."sessionId"
          WHERE se."exerciseId" = ce."exerciseId" AND s."clientId" = ce."clientId"
+           AND s."id" <> ${except}
          ORDER BY s."startsAt" DESC
          LIMIT 1
       ) last ON true
