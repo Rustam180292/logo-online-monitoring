@@ -713,8 +713,11 @@ if (await payRow.count()) {
   await page.goto(`${BASE}/`);
   await page.waitForLoadState("networkidle");
   const table = page.locator('[data-testid="dash-specialists"]');
+  // Ism ustunida avatar (bosh harflar) ham bor — ism o'zi keyingi qatorda
   const names = async () =>
-    (await table.locator("tbody tr td:first-child").allInnerTexts()).map((x) => x.split("\n")[0].trim());
+    (await table.locator("tbody tr td:first-child").allInnerTexts()).map((x) =>
+      x.split("\n").at(-1).trim(),
+    );
   const before = await names();
   check("Panelda mutaxassislar jadvali bor", before.length > 1, `${before.length} ta`);
 
@@ -1856,7 +1859,7 @@ if (await payRow.count()) {
 
   // Nomini o'zgartirish
   await page.waitForLoadState("networkidle");
-  const row = page.locator(`tr:has-text("${name}")`).first();
+  const row = page.locator(`[data-testid="branch-card"]:has-text("${name}")`).first();
   await row.locator("summary").click();
   await row.locator('input[name="name"]').fill(`${name} (yangi)`);
   await row.locator('button:has-text("Saqlash")').click();
@@ -1868,7 +1871,7 @@ if (await payRow.count()) {
 
   // Bo'sh filialni o'chirish mumkin
   await page.waitForLoadState("networkidle");
-  const freshRow = page.locator(`tr:has-text("${name} (yangi)")`).first();
+  const freshRow = page.locator(`[data-testid="branch-card"]:has-text("${name} (yangi)")`).first();
   await freshRow.locator('button:has-text("o\'chirish")').click();
   const removed = await waitUntil(
     async () => (await count("SELECT COUNT(*) AS n FROM Branch")) === before,
@@ -1881,7 +1884,7 @@ if (await payRow.count()) {
   const busy = await one(
     "SELECT b.name FROM Branch b JOIN Client c ON c.branchId = b.id GROUP BY b.name LIMIT 1",
   );
-  const busyRow = page.locator(`tr:has-text("${busy.name}")`).first();
+  const busyRow = page.locator(`[data-testid="branch-card"]:has-text("${busy.name}")`).first();
   await busyRow.locator('button:has-text("o\'chirish")').click();
   const warned = page.getByRole("alert").filter({ hasText: "bo'sh emas" });
   check(

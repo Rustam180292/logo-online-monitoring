@@ -196,26 +196,6 @@ export default async function DashboardPage({
         }
       />
 
-      {/* Ogohlantirish, lekin baqirmaydi: sariq nuqta ma'noni ko'rsatadi,
-          qolgani sahifaning oddiy matni */}
-      {noTelegram > 0 ? (
-        <Link
-          href="/clients?tg=yoq"
-          className={`${card} mb-5 flex items-start gap-3 px-4 py-3 text-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700`}
-        >
-          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-          <span className="text-slate-600 dark:text-slate-400">
-            <b className="font-medium text-slate-900 dark:text-white">
-              {t("{n} ta faol mijozning", { n: noTelegram })}
-            </b>{" "}
-            {t("ota-onasi Telegram botga ulanmagan — ularga eslatma bormaydi")}
-            <span className="ml-1 font-medium text-indigo-600 dark:text-indigo-400">
-              {t("Ro'yxat →")}
-            </span>
-          </span>
-        </Link>
-      ) : null}
-
       {/* Bitta katta raqam + uchta kichik: sahifaning urg'usi kassada.
           Kichiklari bir xil o'lchamda — ular o'zaro teng ahamiyatda */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-9">

@@ -20,15 +20,18 @@ export async function ClientTabs({
     { key: "program" as const, href: `/clients/${clientId}/dastur`, label: t("Dastur") },
   ];
   return (
-    <div className="scroll-x mb-5 flex gap-1" data-testid="client-tabs">
+    <div
+      className="scroll-x mb-5 flex gap-1 border-b border-slate-200 dark:border-slate-800"
+      data-testid="client-tabs"
+    >
       {tabs.map((tab) => (
         <Link
           key={tab.key}
           href={tab.href}
-          className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+          className={`shrink-0 px-3.5 pb-2.5 pt-1 text-[13px] transition ${
             tab.key === active
-              ? "bg-indigo-600 text-white"
-              : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "font-semibold text-indigo-700 shadow-[inset_0_-2px_0] shadow-indigo-600 dark:text-indigo-300 dark:shadow-indigo-400"
+              : "font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400"
           }`}
         >
           {tab.label}

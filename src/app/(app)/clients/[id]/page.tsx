@@ -5,6 +5,7 @@ import { clientScope, requireUser, NOT_SOLO, isFrontDesk, isSolo } from "@/lib/a
 import { canSeeProgram } from "@/lib/program";
 import { branchTypeScope } from "@/lib/session-types";
 import {
+  BILLABLE_STATUSES,
   CLIENT_STATUSES,
   CLIENT_STATUS_KEYS,
   PAYMENT_METHODS,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/constants";
 import { dateShort, dateTimeUz, timeUz, toDateInput } from "@/lib/format";
 import {
+  Avatar,
   Badge,
   Card,
   Empty,
@@ -102,7 +104,8 @@ export default async function ClientPage({
 
   if (!client) notFound();
 
-  const [freeSpecialists, notifications, branches, sessionCount, branchServices] = await Promise.all([
+  const [freeSpecialists, notifications, branches, sessionCount, billableAgg, branchServices] =
+    await Promise.all([
     canManage
       ? prisma.specialist.findMany({
           where: {
@@ -128,6 +131,11 @@ export default async function ClientPage({
       : Promise.resolve([]),
     // Ro'yxat 30 ta bilan cheklangan, o'chirishda esa aniq son kerak
     prisma.session.count({ where: { clientId: client.id } }),
+    // Ko'rsatilgan xizmat — Mijozlar ro'yxatidagi bilan bir xil hisob
+    prisma.session.aggregate({
+      where: { clientId: client.id, status: { in: BILLABLE_STATUSES } },
+      _sum: { price: true },
+    }),
     // Shu filialga mos xizmatlar: markaz mijoziga — markaz xizmatlari,
     // yakka logoped mijoziga — uning o'z xizmatlari
     prisma.sessionType.findMany({
@@ -139,21 +147,56 @@ export default async function ClientPage({
   const myServiceIds = new Set(client.services.map((x) => x.sessionTypeId));
   const freeServices = branchServices.filter((x) => !myServiceIds.has(x.id));
   const totalPaid = client.payments.reduce((s, p) => s + p.amount, 0);
+  const billable = billableAgg._sum.price ?? 0;
+  const balance = totalPaid - billable;
   const doneCount = client.sessions.filter((s) => s.status === "DONE").length;
 
   return (
     <>
-      <PageHeader
-        title={client.fullName}
-        subtitle={`${t.age(client.birthDate)} · ${client.branch.name} · ${
-          t(CLIENT_STATUSES[client.status as ClientStatus])
-        }`}
-        action={
-          <Link href="/clients" className={btn}>
-            ← {t("Mijozlar")}
+      {/* Bolaning kartasi — ismi, yoshi va holati bir qatorda: xodim
+          sahifani ochib birinchi shuni o'qiydi */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <Link
+            href="/clients"
+            aria-label={t("Mijozlar")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-300 text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            ←
           </Link>
-        }
-      />
+          <Avatar name={client.fullName} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                {client.fullName}
+              </h1>
+              <Badge
+                tone={
+                  client.status === "ACTIVE" ? "good" : client.status === "PAUSED" ? "warn" : "muted"
+                }
+              >
+                {t(CLIENT_STATUSES[client.status as ClientStatus])}
+              </Badge>
+            </div>
+            <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
+              {t.age(client.birthDate)} · {client.branch.name}
+              {client.diagnosis ? ` · ${client.diagnosis}` : ""}
+            </p>
+          </div>
+        </div>
+        {canManage && client.status === "ACTIVE" ? (
+          <div className="flex items-center gap-2">
+            {canSeeProgram(user) ? (
+              <Link href={`/clients/${client.id}/baholash/yangi`} className={btn}>
+                {t("Baholash")}
+              </Link>
+            ) : null}
+            <Link href={`/schedule?yangi=${client.id}#yangi`} className={btnPrimary}>
+              + {t("Seans yozish")}
+            </Link>
+          </div>
+        ) : null}
+      </div>
 
       {/* Qabulxona xodimiga baholash va dastur ko'rinmaydi — uning ishi
           jadval va to'lov */}
@@ -165,20 +208,10 @@ export default async function ClientPage({
               Ilgari sotilgan abonementlar bazada qoladi (seans narxi ulardan
               olinadi), lekin hech qayerda ko'rsatilmaydi. */}
           <Card
+            // "+ Seans yozish" sahifa sarlavhasida turadi — bitta amal
+            // ikki joyda takrorlanmasin
             title={t("Seanslar tarixi")}
             subtitle={t("oxirgi 30 ta")}
-            action={
-              // Mijozlar ro'yxatidagi "Seans" tugmasi olib tashlangani uchun
-              // yangi seans yozish shu yerdan, mijoz tanlangan holda ochiladi
-              canManage && client.status === "ACTIVE" ? (
-                <Link
-                  href={`/schedule?yangi=${client.id}#yangi`}
-                  className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
-                >
-                  + {t("Seans yozish")}
-                </Link>
-              ) : undefined
-            }
           >
             {client.sessions.length === 0 ? (
               <Empty>{t("Seans yo'q.")}</Empty>
@@ -340,6 +373,46 @@ export default async function ClientPage({
         </div>
 
         <div className="space-y-5">
+          {/* Uchta raqam — Mijozlar ro'yxatidagi va ota-ona kabinetidagi bilan
+              bir xil hisob: to'langan, ko'rsatilgan xizmat va farqi */}
+          {canManage ? (
+            <section className={`${card} p-5`} data-testid="client-money">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                {t("Hisob")}
+              </h2>
+              <dl className="mt-3.5 grid grid-cols-3 gap-3">
+                {[
+                  { k: t("To'langan"), v: t.money(totalPaid), tone: "text-slate-900 dark:text-white" },
+                  {
+                    k: t("Xizmatlar uchun"),
+                    v: t.money(billable),
+                    tone: "text-slate-600 dark:text-slate-300",
+                  },
+                  {
+                    k: t("Qoldiq"),
+                    v: `${balance > 0 ? "+" : balance < 0 ? "−" : ""}${t.money(Math.abs(balance))}`,
+                    tone:
+                      balance < 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : balance > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-400",
+                  },
+                ].map((x) => (
+                  <div key={x.k} className="min-w-0">
+                    <dt className="text-[11px] text-slate-500 dark:text-slate-400">{x.k}</dt>
+                    <dd className={`mt-0.5 truncate text-sm font-semibold tabular-nums ${x.tone}`}>
+                      {x.v}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                {t("Qoldiq musbat bo'lsa — oldindan to'langan, manfiy bo'lsa — qarz.")}
+              </p>
+            </section>
+          ) : null}
+
           <Card title={t("Qisqa ma'lumot")}>
             <dl className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
               <Row k={t("Ota-ona")} v={client.parentName} />

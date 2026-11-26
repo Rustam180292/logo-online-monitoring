@@ -115,7 +115,7 @@ export default async function BranchesPage() {
            uchun edi — u pastda, chiziqlar bilan */
         <div className="grid gap-4 xl:grid-cols-2">
           {branches.map((b, i) => (
-            <section key={b.id} className={`${card} p-5`}>
+            <section key={b.id} data-testid="branch-card" className={`${card} p-5`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
                   <span

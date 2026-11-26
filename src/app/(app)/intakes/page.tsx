@@ -151,6 +151,51 @@ export default async function IntakesPage({
         />
       </div>
 
+      {/* Qabuldan mijozga: uchta raqamni yonma-yon qo'yganda "qayerda
+          yo'qotyapmiz" ko'rinadi — kelmaganlarmi yoki kelib ketganlarmi */}
+      {intakes.length > 0 ? (
+        <section className={`${card} mt-4 p-5`}>
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              {t("Qabuldan mijozga")}
+            </h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {held > 0
+                ? t("har {n} ta qabuldan 1 tasi mijoz bo'lgan", {
+                    n: converted > 0 ? Math.max(1, Math.round(intakes.length / converted)) : intakes.length,
+                  })
+                : t("hali natija yo'q")}
+            </span>
+          </div>
+          <div className="flex items-end gap-3">
+            {[
+              { label: t("Qabul yozildi"), value: intakes.length },
+              { label: t("Keldi"), value: held },
+              { label: t("Mijoz bo'ldi"), value: converted },
+            ].map((step) => {
+              const part = intakes.length > 0 ? step.value / intakes.length : 0;
+              return (
+                <div key={step.label} className="flex flex-1 flex-col items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums text-slate-900 dark:text-white">
+                    {num(step.value)}
+                  </span>
+                  <span
+                    className="w-full rounded-t-lg bg-indigo-600 dark:bg-indigo-500"
+                    style={{ height: `${Math.max(6, Math.round(part * 86))}px`, opacity: 0.35 + part * 0.65 }}
+                  />
+                  <span className="text-center text-[11px] text-slate-500 dark:text-slate-400">
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+            {t("Konsultatsiya puli mijozga emas, qabulga yoziladi — mijoz bo'lmasa ham kassada qoladi.")}
+          </p>
+        </section>
+      ) : null}
+
       <details data-autoclose className={`${card} mt-5 p-4`}>
         <summary className="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-200">
           + {t("Yangi qabul yozish")}

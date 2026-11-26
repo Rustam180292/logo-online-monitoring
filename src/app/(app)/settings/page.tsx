@@ -51,6 +51,38 @@ export default async function SettingsPage() {
     solo && user.brandLogoAt && user.branchId
       ? `/api/logo?b=${user.branchId}&v=${new Date(user.brandLogoAt).getTime()}`
       : null;
+  /*
+   * Sozlamalar uzun sahifa: bitta ekranga sig'maydi va odam qaysi bo'lim
+   * borligini bilmaydi. Chapdagi ro'yxat — sahifaning mundarijasi: bo'limlar
+   * bir joyda ko'rinadi, bosilganda o'sha yerga olib tushadi. Bo'limlarni
+   * yashirmaymiz — qidirish (Ctrl+F) va tekshiruvlar ishlab tursin.
+   */
+  const sections = [
+    ...(solo
+      ? [
+          { id: "profil", label: t("Mening ma'lumotlarim") },
+          { id: "brend", label: t("Ilova nomi va logotip") },
+        ]
+      : []),
+    ...(isOwner
+      ? [
+          { id: "markaz", label: t("Markaz") },
+          { id: "brend", label: t("Logotip") },
+        ]
+      : []),
+    ...(isOwner || solo
+      ? [
+          { id: "xizmat", label: t("Xizmatlar, narx va ulush") },
+          { id: "vaqt", label: t("Ish vaqti") },
+          { id: "telegram", label: t("Telegram kanalga e'lon") },
+          { id: "jadval", label: t("Google jadval") },
+        ]
+      : []),
+    ...(isOwner ? [{ id: "zaxira", label: t("Zaxira nusxa") }] : []),
+    { id: "korinish", label: t("Ko'rinish va til") },
+    { id: "parol", label: t("Parolni o'zgartirish") },
+  ];
+
   const fileInput =
     "block w-full max-w-xs text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100 dark:text-slate-400 dark:file:bg-indigo-950 dark:file:text-indigo-300";
 
@@ -67,8 +99,25 @@ export default async function SettingsPage() {
         }
       />
 
+      <div className="grid items-start gap-5 lg:grid-cols-[228px_minmax(0,1fr)]">
+        <nav className="hidden rounded-2xl border border-slate-200 bg-white p-2.5 lg:sticky lg:top-20 lg:block dark:border-slate-800 dark:bg-slate-900">
+          <p className="px-2.5 pb-1.5 pt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+            {t("Bo'limlar")}
+          </p>
+          {sections.map((x) => (
+            <a
+              key={x.id + x.label}
+              href={`#${x.id}`}
+              className="block rounded-xl px-2.5 py-2 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              {x.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="min-w-0 space-y-5">
       {/* Ko'rinish va til — har bir foydalanuvchi o'zi uchun tanlaydi */}
-      <Card title={t("Ko'rinish va til")} subtitle={t("shu qurilmada saqlanadi")} className="mb-5">
+      <Card id="korinish" title={t("Ko'rinish va til")} subtitle={t("shu qurilmada saqlanadi")}>
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4 p-4">
           <div>
             <p className={label}>{t("Rejim")}</p>
@@ -84,9 +133,9 @@ export default async function SettingsPage() {
       {solo ? (
         <>
           <Card
+            id="profil"
             title={t("Mening ma'lumotlarim")}
             subtitle={t("ism-familiya va telefon — telefon bilan tizimga kirasiz")}
-            className="mb-5"
           >
             <form action={updateProfile} className="grid gap-3 p-4 sm:grid-cols-3" data-testid="solo-profile">
               <div>
@@ -133,9 +182,9 @@ export default async function SettingsPage() {
           </Card>
 
           <Card
+            id="brend"
             title={t("Ilova nomi va logotip")}
             subtitle={t("menyu tepasida ko'rinadi")}
-            className="mb-5"
           >
             <div className="space-y-5 p-4">
               <form action={updateBrand} className="flex flex-wrap items-end gap-3" data-testid="solo-brand">
@@ -181,25 +230,32 @@ export default async function SettingsPage() {
             </div>
           </Card>
 
-          <SessionTypesCard user={user} className="mb-5" />
+          <div id="xizmat" className="scroll-mt-24">
+            <SessionTypesCard user={user} />
+          </div>
 
-          {hours ? <WorkHoursCard hours={hours} className="mb-5" /> : null}
+          {hours ? (
+            <div id="vaqt" className="scroll-mt-24">
+              <WorkHoursCard hours={hours} />
+            </div>
+          ) : null}
 
           {soloSheets ? (
-            <SheetsCard
-              sheetsUrl={soloSheets.sheetsUrl}
-              syncedAt={soloSheets.sheetsSyncedAt}
-              error={soloSheets.sheetsError}
-              solo
-              className="mb-5"
-            />
+            <div id="jadval" className="scroll-mt-24">
+              <SheetsCard
+                sheetsUrl={soloSheets.sheetsUrl}
+                syncedAt={soloSheets.sheetsSyncedAt}
+                error={soloSheets.sheetsError}
+                solo
+              />
+            </div>
           ) : null}
         </>
       ) : null}
 
       {isOwner ? (
         <>
-          <Card title={t("Markaz")} subtitle={t("nomi hisobotlarda va hujjatlarda ishlatiladi")}>
+          <Card id="markaz" title={t("Markaz")} subtitle={t("nomi hisobotlarda va hujjatlarda ishlatiladi")}>
             <form action={updateCenter} className="grid gap-3 p-4 sm:grid-cols-2">
               <div>
                 <label className={label} htmlFor="centerName">
@@ -234,9 +290,9 @@ export default async function SettingsPage() {
           </Card>
 
           <Card
+            id="brend"
             title={t("Logotip")}
             subtitle={t("menyuda va kirish sahifasida ko'rinadi")}
-            className="mt-5"
           >
             <div className="flex flex-wrap items-start gap-4 p-4">
               <BrandMark logoUrl={s.logoUrl} size="lg" />
@@ -258,19 +314,27 @@ export default async function SettingsPage() {
             </div>
           </Card>
 
-          <SessionTypesCard user={user} className="mt-5" />
+          <div id="xizmat" className="scroll-mt-24">
+            <SessionTypesCard user={user} />
+          </div>
 
-          {hours ? <WorkHoursCard hours={hours} className="mt-5" /> : null}
+          {hours ? (
+            <div id="vaqt" className="scroll-mt-24">
+              <WorkHoursCard hours={hours} />
+            </div>
+          ) : null}
 
-          <SheetsCard
-            sheetsUrl={s.sheetsUrl}
-            syncedAt={s.sheetsSyncedAt}
-            error={s.sheetsError}
-            solo={false}
-            className="mt-5"
-          />
+          <div id="jadval" className="scroll-mt-24">
+            <SheetsCard
+              sheetsUrl={s.sheetsUrl}
+              syncedAt={s.sheetsSyncedAt}
+              error={s.sheetsError}
+              solo={false}
+            />
+          </div>
 
           <Card
+            id="zaxira"
             title={t("Zaxira nusxa")}
             subtitle={t("baza Telegram orqali sizga yuboriladi")}
             className="mt-5"
@@ -317,9 +381,9 @@ export default async function SettingsPage() {
 
       {isOwner || isSolo(user) ? (
         <Card
+          id="telegram"
           title={t("Telegram kanalga e'lon")}
           subtitle={t("ota-onalar kanaliga \"Kabinetni ochish\" tugmali post")}
-          className="mt-5"
         >
           <div className="space-y-3 p-4">
             <details className="text-sm text-slate-600 dark:text-slate-400">
@@ -399,9 +463,9 @@ export default async function SettingsPage() {
       ) : null}
 
       <Card
+        id="parol"
         title={t("Parolni o'zgartirish")}
         subtitle={t("o'z parolingizni o'zingiz almashtirasiz")}
-        className={isOwner || isSolo(user) ? "mt-5" : ""}
       >
         <form action={changePassword} className="grid gap-3 p-4 sm:grid-cols-3">
           <div>
@@ -429,6 +493,8 @@ export default async function SettingsPage() {
           </div>
         </form>
       </Card>
+        </div>
+      </div>
     </>
   );
 }

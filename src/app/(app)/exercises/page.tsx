@@ -34,10 +34,11 @@ export default async function ExercisesPage({
     include: { _count: { select: { clients: { where: { isActive: true } } } } },
   });
 
+  // Yo'nalish tugmalari — ilovadagi boshqa filtr tugmalari bilan bir xil
   const chip = (on: boolean) =>
     on
-      ? "rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white"
-      : "rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:border-indigo-400 dark:border-slate-700 dark:text-slate-300";
+      ? "rounded-full border border-indigo-600 bg-indigo-50 px-3.5 py-1.5 text-[13px] font-semibold text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+      : "rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
 
   return (
     <>

@@ -71,6 +71,8 @@ export default async function SessionPlanPage({ params }: { params: Promise<{ id
 
   const marked = new Map(session.exercises.map((x) => [x.exerciseId, x.result]));
   const inProgram = new Set(rows.map((r) => r.exerciseId));
+  // Rejadagi nechta mashq belgilangani (chiziqcha uchun)
+  const markedCount = rows.filter((r) => marked.get(r.exerciseId)).length;
   const free = library.filter((e) => !inProgram.has(e.id));
   const assessmentAgeDays = lastAssessment
     ? Math.floor((Date.now() - lastAssessment.at.getTime()) / 86_400_000)
@@ -125,6 +127,22 @@ export default async function SessionPlanPage({ params }: { params: Promise<{ id
         {t("Bugungi reja")}{" "}
         <span className="app-muted font-normal">· {t("dasturdan tanlandi")}</span>
       </p>
+
+      {/* Qancha mashq belgilangani — mutaxassis mashg'ulot o'rtasida
+          "yana nechtasi qoldi" deb ro'yxatni sanab chiqmasin */}
+      {rows.length > 0 ? (
+        <div className="mb-3 flex items-center gap-3">
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
+            <span
+              className="block h-full rounded-full bg-emerald-600"
+              style={{ width: `${Math.round((markedCount / rows.length) * 100)}%` }}
+            />
+          </span>
+          <span className="shrink-0 text-xs app-muted tabular-nums">
+            {t("{done} / {all}", { done: markedCount, all: rows.length })}
+          </span>
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="app-card p-4 text-sm app-muted">
