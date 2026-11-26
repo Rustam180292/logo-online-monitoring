@@ -35,6 +35,13 @@ export function monthRange(d: Date = new Date()): Range {
   return { from, to };
 }
 
+/** Chorak: shu oy va undan oldingi ikki oy (panel va hisobotdagi "3 oy") */
+export function quarterRange(d: Date = new Date()): Range {
+  const from = new Date(d.getFullYear(), d.getMonth() - 2, 1);
+  const to = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return { from, to };
+}
+
 const isBillable = (s: string) => BILLABLE_STATUSES.includes(s as SessionStatus);
 
 export type Overview = {
@@ -358,4 +365,96 @@ export async function getSpecialistBalances(opts: {
       balance: accrued - paid,
     };
   });
+}
+
+export type DayCount = {
+  /** Kun boshi (markaz vaqtida) */
+  day: Date;
+  done: number;
+  noShow: number;
+  planned: number;
+};
+
+/**
+ * Oy davomida kunlar bo'yicha seanslar — paneldagi ustunli diagramma uchun.
+ *
+ * Bitta so'rov bilan olinadi: oyda 400-500 seans bo'lishi mumkin, ularni
+ * sahifaga tortib kelib JS'da sanashning hojati yo'q.
+ *
+ * `branchWhere()` ning mantig'i shu yerda qo'lda yozilgan: filial tanlanmasa
+ * "butun markaz" degani yakka mutaxassislarsiz demakdir.
+ */
+export async function getDailySessions(opts: {
+  branchId?: string | null;
+  from: Date;
+  to: Date;
+}): Promise<DayCount[]> {
+  const { branchId, from, to } = opts;
+  // Bitta so'rovning ikki ko'rinishi: filial tanlangan bo'lsa o'sha filial,
+  // bo'lmasa butun markaz (yakka mutaxassislarning filiallarisiz)
+  const rows = branchId
+    ? await prisma.$queryRaw<DayCount[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COUNT(*) FILTER (WHERE s."status" = 'DONE')::int AS "done",
+               COUNT(*) FILTER (WHERE s."status" = 'NO_SHOW')::int AS "noShow",
+               COUNT(*) FILTER (WHERE s."status" = 'PLANNED')::int AS "planned"
+          FROM "Session" s
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND s."branchId" = ${branchId}
+         GROUP BY 1 ORDER BY 1`
+    : await prisma.$queryRaw<DayCount[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COUNT(*) FILTER (WHERE s."status" = 'DONE')::int AS "done",
+               COUNT(*) FILTER (WHERE s."status" = 'NO_SHOW')::int AS "noShow",
+               COUNT(*) FILTER (WHERE s."status" = 'PLANNED')::int AS "planned"
+          FROM "Session" s
+          JOIN "Branch" b ON b."id" = s."branchId"
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND b."isSolo" = false
+         GROUP BY 1 ORDER BY 1`;
+  return rows;
+}
+
+export type DayMoney = {
+  /** Kun boshi (markaz vaqtida) */
+  day: Date;
+  amount: number;
+};
+
+/**
+ * Kunlar bo'yicha kassaga tushgan pul — paneldagi ingichka chiziqcha uchun.
+ *
+ * `getOverview().collected` bilan bir xil hisoblanadi: mijoz to'lovlari va
+ * konsultatsiya puli qo'shiladi (konsultatsiya `Payment` da emas, `Intake`
+ * da turadi). Ikki joyda boshqa-boshqa hisoblansa, paneldagi raqam va
+ * chiziqcha bir-biriga mos kelmay qoladi.
+ */
+export async function getDailyCollected(opts: {
+  branchId?: string | null;
+  from: Date;
+  to: Date;
+}): Promise<DayMoney[]> {
+  const { branchId, from, to } = opts;
+  const rows = branchId
+    ? await prisma.$queryRaw<DayMoney[]>`
+        SELECT d."day", SUM(d."amount")::int AS "amount" FROM (
+          SELECT date_trunc('day', p."paidAt") AS "day", p."amount" AS "amount"
+            FROM "Payment" p
+           WHERE p."paidAt" >= ${from} AND p."paidAt" < ${to} AND p."branchId" = ${branchId}
+          UNION ALL
+          SELECT date_trunc('day', i."paidAt") AS "day", i."price" AS "amount"
+            FROM "Intake" i
+           WHERE i."paidAt" >= ${from} AND i."paidAt" < ${to} AND i."branchId" = ${branchId}
+        ) d GROUP BY 1 ORDER BY 1`
+    : await prisma.$queryRaw<DayMoney[]>`
+        SELECT d."day", SUM(d."amount")::int AS "amount" FROM (
+          SELECT date_trunc('day', p."paidAt") AS "day", p."amount" AS "amount"
+            FROM "Payment" p JOIN "Branch" b ON b."id" = p."branchId"
+           WHERE p."paidAt" >= ${from} AND p."paidAt" < ${to} AND b."isSolo" = false
+          UNION ALL
+          SELECT date_trunc('day', i."paidAt") AS "day", i."price" AS "amount"
+            FROM "Intake" i JOIN "Branch" b ON b."id" = i."branchId"
+           WHERE i."paidAt" >= ${from} AND i."paidAt" < ${to} AND b."isSolo" = false
+        ) d GROUP BY 1 ORDER BY 1`;
+  return rows;
 }

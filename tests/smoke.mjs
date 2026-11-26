@@ -160,7 +160,38 @@ check("Noto'g'ri parol rad etiladi", (await page.content()).includes("noto'g'ri"
 
 /* 3. Markaz egasi kiradi */
 await login(owner.phone);
-check("Markaz egasi kirdi", (await page.content()).includes("Assalomu alaykum"), page.url());
+await page.waitForSelector('[data-testid="dash-chart"]', { timeout: 15000 }).catch(() => {});
+check("Markaz egasi kirdi", (await page.locator('[data-testid="dash-chart"]').count()) === 1, page.url());
+
+/* 3b. Panel: sarlavha davr nomi, oylik diagramma kunlarni ko'rsatadi */
+{
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const panel = await page.locator("main").innerText();
+  check(
+    "Panel sarlavhasi — davr nomi, salomlashish emas",
+    !panel.includes("Assalomu alaykum") && !panel.includes("!"),
+    panel.split("\n")[0],
+  );
+  check(
+    "Diagramma oyning har bir kunini ko'rsatadi",
+    (await page.locator('[data-testid="dash-chart"] [title]').count()) === daysInMonth,
+    `${daysInMonth} kun`,
+  );
+  const doneMonth = await count(
+    `SELECT COUNT(*) AS n FROM Session s JOIN Branch b ON b.id = s.branchId
+      WHERE b.isSolo = false AND s.status = 'DONE' AND s.startsAt >= ? AND s.startsAt < ?`,
+    monthStart,
+    nextMonth,
+  );
+  check(
+    "Diagrammadagi son bazadagi bilan bir xil",
+    panel.includes(`${doneMonth} ta mashg'ulot o'tdi`),
+    String(doneMonth),
+  );
+}
 
 /* 4. Davomat belgilash */
 
@@ -2693,7 +2724,13 @@ if (!reception) {
   await page.waitForLoadState("networkidle");
   await page.locator('label:has(input[name="a_eyeContact"][value="3"])').click();
   await page.fill('input[name="a_activeWords"]', "21");
-  await page.locator('label:has(input[name="a_stims"][value="Aylanish"])').click();
+  // Oldingi baholash javoblari tanlab qo'yiladi, shuning uchun "bosish" emas,
+  // "belgilangan holatga keltirish": test bir necha marta ishlaganda ham
+  // natija bir xil bo'lsin
+  const stim = page.locator('input[name="a_stims"][value="Aylanish"]');
+  if (!(await stim.isChecked())) {
+    await page.locator('label:has(input[name="a_stims"][value="Aylanish"])').click();
+  }
   const goalTitle = `Sinov maqsadi ${Date.now()}`;
   await page.locator('input[name="goal"]').first().fill(goalTitle);
   await page.check('input[name="shareWithParent"]');

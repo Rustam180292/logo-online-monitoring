@@ -107,7 +107,7 @@ export function DataTable({
                       <button
                         type="button"
                         onClick={() => toggle(i)}
-                        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-800 dark:hover:text-slate-200"
+                        className="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-slate-200"
                         title={t("Tartiblash")}
                       >
                         {c.label}
