@@ -8,8 +8,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html {
@@ -47,35 +47,72 @@ body {
 }
 
 /*
- * Kunduzgi rejim ranglari: oq, mentol, och yashil, och ko'k va havo rang.
+ * Kunduzgi rejim ranglari: iliq tosh fon, oq kartalar, to'q yashil-ko'k
+ * (teal) asosiy rang, g'ishtrang ogohlantirish.
  *
  * Sahifalardagi yuzlab klassni (bg-slate-50, text-indigo-600 ...) birma-bir
  * almashtirish o'rniga, kunduzgi rejimda faqat shu ranglarning qiymati
  * o'zgartiriladi. Tungi rejim (`.dark`) bunga tegmaydi — avvalgi ranglari
- * aynan saqlanadi. Matn uchun ishlatiladigan to'q kul ranglar (400-950)
- * o'zgartirilmagan: o'qilishi buzilmasin.
+ * aynan saqlanadi.
+ *
+ * Har bir matn rangi fonda 4.5:1 dan o'tadi: kichik kul yozuvlar ham
+ * o'qiladigan bo'lsin (shuning uchun slate-400 ham ancha to'q).
  */
 html:not(.dark) {
-  /* fon va chegaralar: mentol */
-  --color-slate-50: #effbf6;
-  --color-slate-100: #e1f5ed;
-  --color-slate-200: #cdebe0;
-  --color-slate-300: #b0dccc;
-  /* asosiy rang: binafsha o'rniga havo rang / och ko'k.
+  /* fon va chegaralar: iliq tosh */
+  --color-slate-50: #f7f6f3;
+  --color-slate-100: #edebe5;
+  --color-slate-200: #e6e4dd;
+  --color-slate-300: #d8d5cc;
+  /* matn: to'q kulrangga iliqlik qo'shilgan */
+  --color-slate-400: #666c78;
+  --color-slate-500: #5a5f6b;
+  --color-slate-600: #4a4f59;
+  --color-slate-700: #3c4149;
+  --color-slate-800: #2a2e35;
+  --color-slate-900: #15171c;
+  --color-slate-950: #0b0c0f;
+  /* asosiy rang: binafsha o'rniga to'q yashil-ko'k.
      600 va 700 oq matnli tugmalarda turadi — o'qilishi uchun to'qroq tanlangan */
-  --color-indigo-50: #e7f6fd;
-  --color-indigo-100: #cfeefb;
-  --color-indigo-200: #a8e0f5;
-  --color-indigo-300: #72caeb;
-  --color-indigo-400: #3cb3dd;
-  --color-indigo-500: #189fcd;
-  --color-indigo-600: #0a7ba5;
-  --color-indigo-700: #096a8e;
-  --color-indigo-900: #0b3e55;
+  --color-indigo-50: #ecf3f2;
+  --color-indigo-100: #d9e8e6;
+  --color-indigo-200: #b6d5d1;
+  --color-indigo-300: #86bab4;
+  --color-indigo-400: #4a9d95;
+  --color-indigo-500: #16908a;
+  --color-indigo-600: #0f7a74;
+  --color-indigo-700: #0b5f5a;
+  --color-indigo-900: #0a3b38;
+  --color-indigo-950: #06261f;
+  /* yaxshi xabar: o'rmon yashili */
+  --color-emerald-50: #e9f2ee;
+  --color-emerald-100: #d7e9e1;
+  --color-emerald-300: #86bfa6;
+  --color-emerald-400: #4e9b7d;
+  --color-emerald-600: #2e7d62;
+  --color-emerald-700: #1f6b52;
+  --color-emerald-950: #0c2a21;
+  /* ogohlantirish: g'ishtrang (sariq fonda o'qilmaydi, shuning uchun to'q) */
+  --color-amber-50: #fbefe6;
+  --color-amber-100: #f7e3d5;
+  --color-amber-200: #efd0b8;
+  --color-amber-400: #c87c43;
+  --color-amber-600: #b35a30;
+  --color-amber-700: #96491f;
+  --color-amber-900: #6c3519;
+  --color-amber-950: #38190b;
+  /* xato: iliq qizil */
+  --color-rose-50: #fcebe8;
+  --color-rose-100: #f8d9d4;
+  --color-rose-300: #e09c92;
+  --color-rose-400: #cf7265;
+  --color-rose-600: #b8443a;
+  --color-rose-700: #9a362d;
+  --color-rose-950: #3b120e;
 }
 
 html:not(.dark) body {
-  background: linear-gradient(165deg, #f1fcf7 0%, #ecf8fd 55%, #f4fbff 100%) fixed;
+  background: #f3f2ef;
 }
 
 /* Jadvallarni mobil ekranda gorizontal aylantirish uchun */
@@ -91,17 +128,17 @@ html:not(.dark) body {
    tanlaydi; Telegram'ning sarlavha rangi esa unga moslab qo'yiladi
    (`src/app/m/tg-theme.tsx`). */
 .app-shell {
-  background: #effbf6;
-  color: #0f172a;
+  background: #f3f2ef;
+  color: #15171c;
 }
 .app-card {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 16px;
 }
-.app-muted { color: #64748b; }
-.app-link { color: #0a7ba5; }
+.app-muted { color: #666c78; }
+.app-link { color: #0f7a74; }
 .app-accent {
-  background: #0a7ba5;
+  background: #0f7a74;
   color: #ffffff;
 }
 

@@ -14,8 +14,8 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     // Ilova ochilayotganda ko'rinadigan ekran — kunduzgi rejim ranglarida
     // (manifest cookie'ni o'qiy olmaydi, shuning uchun asosiy ko'rinish olingan)
-    background_color: "#effbf6",
-    theme_color: "#0a7ba5",
+    background_color: "#f3f2ef",
+    theme_color: "#0f7a74",
     // Belgi markaz logotipidan yasaladi (Sozlamalar), yuklanmagan bo'lsa
     // /api/app-icon eski statik belgiga yo'naltiradi
     icons: [

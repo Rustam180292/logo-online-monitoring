@@ -21,10 +21,10 @@ export function SideNav({ items }: { items: NavItem[] }) {
           <Link
             key={it.href}
             href={it.href}
-            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] transition ${
               active
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                ? "bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                : "font-normal text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
             <Icon name={it.icon} className="h-[18px] w-[18px] shrink-0" />
@@ -46,9 +46,9 @@ export function MobileNav({ items }: { items: NavItem[] }) {
           <Link
             key={it.href}
             href={it.href}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13px] font-medium transition ${
               active
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                ? "bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                 : "text-slate-600 dark:text-slate-400"
             }`}
           >

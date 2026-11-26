@@ -113,7 +113,7 @@ const isDark = (page) => page.evaluate(() => document.documentElement.classList.
   });
   check(
     "Tungi rejim ranglari avvalgidek",
-    darkVars[0] !== "#0a7ba5" && darkVars[1] !== "#effbf6",
+    darkVars[0] !== "#0f7a74" && darkVars[1] !== "#f7f6f3",
     darkVars.join(" / "),
   );
   await page.locator('[data-testid="topbar"] [data-testid="theme-toggle"]').click();
@@ -121,7 +121,7 @@ const isDark = (page) => page.evaluate(() => document.documentElement.classList.
   const accent = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue("--color-indigo-600").trim(),
   );
-  check("Kunduzgi rejimda asosiy rang havo rang", accent === "#0a7ba5", accent);
+  check("Kunduzgi rejimda asosiy rang to'q yashil-ko'k", accent === "#0f7a74", accent);
   await ctx.close();
 }
 
