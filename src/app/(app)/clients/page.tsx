@@ -12,9 +12,11 @@ import {
   type Specialization,
 } from "@/lib/constants";
 import {
+  Avatar,
   Badge,
   Card,
   Empty,
+  FilterChips,
   PageHeader,
   btnPrimary,
   card,
@@ -37,6 +39,7 @@ type Search = {
   b?: string;
   st?: string;
   tg?: string;
+  qarz?: string;
 };
 
 /**
@@ -93,12 +96,25 @@ export default async function ClientsPage({
     : null;
   // Telegram'ga ulanmagan ota-onaga eslatma bormaydi — ularni ajratib ko'rsatish kerak
   const telegramFilter = sp.tg === "bor" || sp.tg === "yoq" ? sp.tg : null;
+  // Qarzdorlik bazada ustun emas — to'langan va ko'rsatilgan xizmat farqidan
+  // chiqadi, shuning uchun ro'yxat o'qilgandan keyin filtrlanadi
+  const debtOnly = sp.qarz === "1";
   const hasFilter = Boolean(
     nameFilter || phoneFilter || ageFilter !== null || specialistFilter ||
-      statusFilter || telegramFilter || sp.b,
+      statusFilter || telegramFilter || debtOnly || sp.b,
   );
 
-  const [clients, branches, specialists, services, paidRows, earnedRows] = await Promise.all([
+  const [
+    clients,
+    branches,
+    specialists,
+    services,
+    paidRows,
+    earnedRows,
+    activeCount,
+    archivedCount,
+    noTelegramCount,
+  ] = await Promise.all([
     prisma.client.findMany({
       where: {
         ...clientScope(user),
@@ -178,9 +194,24 @@ export default async function ClientsPage({
           _sum: { price: true },
         })
       : Promise.resolve([]),
+    // Tez filtr tugmalaridagi sonlar — doirani hisobga olib, filtrlardan qat'i nazar
+    prisma.client.count({ where: { ...clientScope(user), status: "ACTIVE" } }),
+    prisma.client.count({ where: { ...clientScope(user), status: "ARCHIVED" } }),
+    prisma.client.count({
+      where: {
+        ...clientScope(user),
+        status: "ACTIVE",
+        OR: [{ parentUserId: null }, { parent: { is: { telegramId: null } } }],
+      },
+    }),
   ]);
   const paidBy = new Map(paidRows.map((r) => [r.clientId, r._sum.amount ?? 0]));
   const earnedBy = new Map(earnedRows.map((r) => [r.clientId, r._sum.price ?? 0]));
+  const balanceOf = (id: string) => (paidBy.get(id) ?? 0) - (earnedBy.get(id) ?? 0);
+  // Qarzdorlar soni butun doira bo'yicha: tugmadagi raqam filtrga qarab
+  // o'zgarib ketmasin
+  const debtorCount = earnedRows.filter((r) => balanceOf(r.clientId) < 0).length;
+  const rows = debtOnly ? clients.filter((c) => balanceOf(c.id) < 0) : clients;
 
   // Bola, yoshi, mutaxassis, ota-ona, holat (+ filial egada, + pul ustunlari
   // qabulxona/ega/yakkada; markazdagi mutaxassisga mijozning puli ko'rinmaydi)
@@ -193,8 +224,43 @@ export default async function ClientsPage({
     <>
       <PageHeader
         title={t("Mijozlar")}
-        subtitle={`${t("{n} ta mijoz", { n: clients.length })}${user.role === "SPECIALIST" ? ` · ${t("menga biriktirilgan")}` : ""}`}
+        subtitle={`${t("{n} ta mijoz", { n: rows.length })}${user.role === "SPECIALIST" ? ` · ${t("menga biriktirilgan")}` : ""}`}
       />
+
+      {/* Tez filtrlar: rahbar kuniga qaytarib so'raydigan savollar —
+          kim qarzdor, kimning ota-onasi botga ulanmagan */}
+      {canManage ? (
+        <div className="mb-5">
+          <FilterChips
+            items={[
+              {
+                href: "/clients",
+                label: t("Hammasi"),
+                count: activeCount,
+                active: !statusFilter && !telegramFilter && !debtOnly,
+              },
+              {
+                href: "/clients?qarz=1",
+                label: t("Qarzdor"),
+                count: debtorCount,
+                active: debtOnly,
+              },
+              {
+                href: "/clients?tg=yoq",
+                label: t("Botga ulanmagan"),
+                count: noTelegramCount,
+                active: telegramFilter === "yoq",
+              },
+              {
+                href: "/clients?st=ARCHIVED",
+                label: t("Arxiv"),
+                count: archivedCount,
+                active: statusFilter === "ARCHIVED",
+              },
+            ]}
+          />
+        </div>
+      ) : null}
 
       {canManage ? (
         <details data-autoclose className={`${card} mb-5 p-4`}>
@@ -294,7 +360,7 @@ export default async function ClientsPage({
       ) : null}
 
       <Card>
-        {clients.length === 0 && !hasFilter ? (
+        {rows.length === 0 && !hasFilter ? (
           <Empty>{t("Hali mijoz qo'shilmagan.")}</Empty>
         ) : (
           <div className="scroll-x">
@@ -329,21 +395,30 @@ export default async function ClientsPage({
                 />
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {clients.map((c) => (
+                {rows.map((c) => (
                   <Fragment key={c.id}>
                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className={td}>
-                      <Link
-                        href={`/clients/${c.id}`}
-                        className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                      >
-                        {c.fullName}
-                      </Link>
-                      {c.diagnosis ? (
-                        <span className="block max-w-[220px] truncate text-xs text-slate-400">
-                          {c.diagnosis}
+                      <span className="flex items-center gap-2.5">
+                        <Avatar
+                          name={c.fullName}
+                          size="sm"
+                          tone={canManage && balanceOf(c.id) < 0 ? "warn" : "default"}
+                        />
+                        <span className="min-w-0">
+                          <Link
+                            href={`/clients/${c.id}`}
+                            className="font-medium text-slate-900 hover:text-indigo-700 dark:text-white dark:hover:text-indigo-300"
+                          >
+                            {c.fullName}
+                          </Link>
+                          {c.diagnosis ? (
+                            <span className="block max-w-[220px] truncate text-xs text-slate-400">
+                              {c.diagnosis}
+                            </span>
+                          ) : null}
                         </span>
-                      ) : null}
+                      </span>
                     </td>
                     <td className={td}>{t.age(c.birthDate)}</td>
                     {user.role === "OWNER" ? <td className={td}>{c.branch.name}</td> : null}
@@ -358,7 +433,7 @@ export default async function ClientsPage({
                               <span className="text-sm text-slate-700 dark:text-slate-300">
                                 {a.specialist.user.fullName}
                               </span>
-                              <span className="ml-1.5 text-xs text-slate-400">
+                              <span className="ml-1.5 inline-block max-w-[120px] truncate align-bottom text-xs text-slate-400">
                                 {t(SPECIALIZATIONS[a.specialist.specialization as Specialization])}
                               </span>
                             </span>
@@ -461,6 +536,11 @@ export default async function ClientsPage({
             </table>
           </div>
         )}
+        {canManage ? (
+          <p className="border-t border-slate-200 px-4 py-3 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            {t("To'langan — mijozning hamma to'lovi. Xizmatlar uchun — \"O'tdi\" va \"Kelmadi\" seanslar narxi (rejadagisi sanalmaydi). Qoldiq — farqi: musbat bo'lsa oldindan to'langan, manfiy bo'lsa qarz. Konsultatsiya puli bunga kirmaydi — u qabulga yoziladi.")}
+          </p>
+        ) : null}
       </Card>
 
     </>

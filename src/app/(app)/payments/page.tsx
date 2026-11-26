@@ -13,6 +13,7 @@ import {
   Badge,
   Card,
   Empty,
+  HeroStat,
   PageHeader,
   StatCard,
   btn,
@@ -164,15 +165,44 @@ export default async function PaymentsPage({
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          label={t("Jami tushum")}
-          value={t.money(total)}
-          hint={intakeTotal > 0 ? t("{sum} konsultatsiyadan", { sum: t.money(intakeTotal) }) : undefined}
-          tone="good"
-        />
+      {/* Kassa — sahifaning bitta asosiy raqami. Ostidagi chiziq mijoz
+          to'lovlari bilan konsultatsiya pulining nisbatini ko'rsatadi:
+          ikkisi ham kassaga tushadi, lekin bazada alohida turadi */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-9">
+        <div className="sm:col-span-2 lg:col-span-3">
+          <HeroStat
+            label={t("Jami tushum")}
+            value={t.money(total)}
+            badge={t.monthYear(from)}
+            hint={
+              intakeTotal > 0
+                ? t("{sum} konsultatsiyadan", { sum: t.money(intakeTotal) })
+                : undefined
+            }
+          >
+            {total > 0 ? (
+              <div className="flex gap-2">
+                <span
+                  className="flex flex-col gap-1.5"
+                  style={{ flex: Math.max(1, total - intakeTotal) }}
+                >
+                  <span className="h-1.5 rounded-full bg-white/90" />
+                  <span className="text-[11px] text-white/70">{t("Mijoz to'lovlari")}</span>
+                </span>
+                {intakeTotal > 0 ? (
+                  <span className="flex flex-col gap-1.5" style={{ flex: intakeTotal }}>
+                    <span className="h-1.5 rounded-full bg-white/40" />
+                    <span className="text-[11px] text-white/70">{t("Konsultatsiya")}</span>
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </HeroStat>
+        </div>
         {byMethod.map((m) => (
-          <StatCard key={m.method} label={t(PAYMENT_METHODS[m.method])} value={t.money(m.sum)} />
+          <div key={m.method} className="lg:col-span-2">
+            <StatCard label={t(PAYMENT_METHODS[m.method])} value={t.money(m.sum)} />
+          </div>
         ))}
       </div>
 

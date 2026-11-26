@@ -7,7 +7,7 @@ import { daySlots, getWorkHours, isWorkDay, minutesToTime } from "@/lib/settings
 import { addDays, startOfDay } from "@/lib/stats";
 import { dateShort, timeUz } from "@/lib/format";
 import { getT } from "@/lib/i18n/server";
-import { Card, Empty, PageHeader, btn, btnPrimary, card, input, label } from "@/components/ui";
+import { Card, Empty, PageHeader, btn, btnPrimary, card, input, label, th } from "@/components/ui";
 import { createSession } from "@/app/(app)/schedule/actions";
 
 type Search = { w?: string; sp?: string; d?: string; b?: string };
@@ -180,13 +180,11 @@ export default async function SlotsPage({
             <table className="w-full min-w-[880px]">
               <thead className="border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {t("Mutaxassis")}
-                  </th>
+                  <th className={th}>{t("Mutaxassis")}</th>
                   {days.map((d) => (
                     <th
                       key={d.toISOString()}
-                      className={`px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide ${
+                      className={`px-2 py-3 text-center text-[11px] font-medium ${
                         isWorkDay(d, settings.workDays)
                           ? "text-slate-500 dark:text-slate-400"
                           : "text-slate-300 dark:text-slate-600"
@@ -220,10 +218,10 @@ export default async function SlotsPage({
                           ) : (
                             <Link
                               href={qs({ sp: s.id, d: isoDay(d) })}
-                              className={`inline-flex min-w-[36px] items-center justify-center rounded-full px-2.5 py-1 text-sm font-semibold transition ${
+                              className={`inline-flex min-w-[36px] items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold transition ${
                                 isPicked
-                                  ? "bg-indigo-600 text-white"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                                  ? "border-indigo-600 bg-indigo-600 text-white"
+                                  : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300"
                               }`}
                             >
                               {free}
@@ -259,16 +257,16 @@ export default async function SlotsPage({
           ) : clients.length === 0 ? (
             <Empty>{t("Bu filialda faol mijoz yo'q.")}</Empty>
           ) : (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
               {pickedSlots.map((slot) => (
                 <form
                   key={slot.toISOString()}
                   action={createSession}
-                  className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+                  className="rounded-2xl border border-slate-200 p-3.5 dark:border-slate-800"
                 >
                   <input type="hidden" name="specialistId" value={picked.specialist!.id} />
                   <input type="hidden" name="startsAt" value={localInput(slot)} />
-                  <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  <p className="mb-2.5 text-lg font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
                     {timeUz(slot)}
                   </p>
                   <select name="clientId" className={input} required defaultValue="">

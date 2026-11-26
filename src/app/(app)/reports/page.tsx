@@ -9,7 +9,7 @@ import {
 } from "@/lib/constants";
 import { getOverview, getSpecialistRows, monthRange } from "@/lib/stats";
 import { num } from "@/lib/format";
-import { Card, Empty, PageHeader, StatCard, btn, td, th } from "@/components/ui";
+import { Card, Empty, HeroStat, PageHeader, StatCard, btn, td, th } from "@/components/ui";
 import { getT } from "@/lib/i18n/server";
 
 type Search = { m?: string };
@@ -73,6 +73,9 @@ export default async function ReportsPage({
     }),
   );
 
+  // Eng katta ish haqi — jadvaldagi chiziqlarni shunga nisbatan chizamiz
+  const maxSalary = Math.max(1, ...specialistRows.map((r) => r.salary));
+
   // Yo'nalishlar kesimi
   const bySpec = new Map<string, { done: number; revenue: number }>();
   for (const s of sessions) {
@@ -117,31 +120,45 @@ export default async function ReportsPage({
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label={t("O'tgan seanslar")} value={num(overview.done)} tone="good" />
-        <StatCard
-          label={t("Davomat")}
-          value={overview.attendanceRate === null ? "—" : `${overview.attendanceRate}%`}
-          hint={t("{noShow} kelmadi · {cancelled} bekor", { noShow: overview.noShow, cancelled: overview.cancelled })}
-        />
-        <StatCard label={t("Kassaga tushgan")} value={t.money(overview.collected)} />
-        <StatCard label={t("Xizmat qiymati")} value={t.money(overview.earned)} />
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {/* Yakka mutaxassisda maosh va markaz ulushi yo'q — pulning hammasi o'ziniki */}
+      {/* Oyning asosiy raqami — kassa. Yonida uchta kichik: ular bilan
+          "pul qayerga ketdi" degan savolga javob beriladi */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-9">
+        <div className="sm:col-span-2 lg:col-span-3">
+          <HeroStat
+            label={t("Kassaga tushgan")}
+            value={t.money(overview.collected)}
+            badge={t.monthYear(from)}
+            hint={t("Xizmat qiymati {sum}", { sum: t.money(overview.earned) })}
+          />
+        </div>
         {solo ? null : (
           <>
-            <StatCard label={t("Mutaxassis haqi")} value={t.money(overview.salary)} tone="warn" />
-            <StatCard
-              label={t("Markaz ulushi")}
-              value={t.money(profit)}
-              hint={t("xizmat qiymati − ish haqi")}
-              tone="good"
-            />
+            <div className="lg:col-span-2">
+              <StatCard label={t("Mutaxassis haqi")} value={t.money(overview.salary)} tone="warn" />
+            </div>
+            <div className="lg:col-span-2">
+              <StatCard
+                label={t("Markaz ulushi")}
+                value={t.money(profit)}
+                hint={t("xizmat qiymati − ish haqi")}
+                tone="accent"
+              />
+            </div>
           </>
         )}
+        <div className={solo ? "lg:col-span-3" : "lg:col-span-2"}>
+          <StatCard
+            label={t("Davomat")}
+            value={overview.attendanceRate === null ? "—" : `${overview.attendanceRate}%`}
+            hint={t("{noShow} kelmadi · {cancelled} bekor", { noShow: overview.noShow, cancelled: overview.cancelled })}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label={t("O'tgan seanslar")} value={num(overview.done)} tone="good" />
         <StatCard label={t("Rejadagi seanslar")} value={num(overview.planned)} />
+        <StatCard label={t("Xizmat qiymati")} value={t.money(overview.earned)} />
         <StatCard
           label={t("Konsultatsiyalardan")}
           value={t.money(intakeAgg._sum.price ?? 0)}
@@ -204,6 +221,7 @@ export default async function ReportsPage({
                     <th className={th}>{t("O'tdi")}</th>
                     <th className={th}>{t("Xizmat")}</th>
                     <th className={th}>{t("Ish haqi")}</th>
+                    <th className={th}>{t("Ulush")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -219,6 +237,15 @@ export default async function ReportsPage({
                       <td className={`${td} tabular-nums`}>{r.done}</td>
                       <td className={`${td} tabular-nums`}>{t.money(r.revenue)}</td>
                       <td className={`${td} font-semibold tabular-nums`}>{t.money(r.salary)}</td>
+                      {/* Chiziq: kim ko'p ishlaganini raqamlarni solishtirmasdan ko'rsatadi */}
+                      <td className={`${td} w-28`}>
+                        <span className="block h-[7px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                          <span
+                            className="block h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
+                            style={{ width: `${Math.round((r.salary / maxSalary) * 100)}%` }}
+                          />
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

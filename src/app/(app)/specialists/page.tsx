@@ -6,6 +6,7 @@ import { SPECIALIZATIONS, SPECIALIZATION_KEYS, type Specialization } from "@/lib
 import { getSpecialistBalances, getSpecialistRows, monthRange } from "@/lib/stats";
 import { dateShort, toDateInput } from "@/lib/format";
 import {
+  Avatar,
   Badge,
   Card,
   Empty,
@@ -74,6 +75,8 @@ export default async function SpecialistsPage() {
   const phoneOf = new Map(specialistPhones.map((x) => [x.id, x.user.phone]));
   // Botga ulanmagan xodim eslatma ham, zaxira ham olmaydi — buni ko'rsatib turamiz
   const tgOf = new Map(specialistPhones.map((x) => [x.id, Boolean(x.user.telegramId)]));
+  // Eng katta ish haqi — jadvaldagi ulush chiziqlari shunga nisbatan chiziladi
+  const maxSalary = Math.max(1, ...rows.map((r) => r.salary));
 
   const totalSalary = rows.reduce((s, r) => s + r.salary, 0);
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
@@ -171,6 +174,7 @@ export default async function SpecialistsPage() {
                   <th className={th}>{t("Rejada")}</th>
                   <th className={th}>{t("Xizmat qiymati")}</th>
                   <th className={th}>{t("Ish haqi")}</th>
+                  <th className={th}>{t("Ulush")}</th>
                   <th className={th} />
                 </tr>
               </thead>
@@ -179,12 +183,17 @@ export default async function SpecialistsPage() {
                   <Fragment key={r.id}>
                   <tr>
                     <td className={`${td} font-medium`}>
-                      {r.fullName}
-                      {tgOf.get(r.id) ? null : (
-                        <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">
-                          {t("Telegram yo'q")}
+                      <span className="flex items-center gap-2.5">
+                        <Avatar name={r.fullName} tone="muted" size="sm" />
+                        <span>
+                          {r.fullName}
+                          {tgOf.get(r.id) ? null : (
+                            <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">
+                              {t("Telegram yo'q")}
+                            </span>
+                          )}
                         </span>
-                      )}
+                      </span>
                     </td>
                     <td className={td}>
                       <Badge>{t(SPECIALIZATIONS[r.specialization as Specialization])}</Badge>
@@ -198,6 +207,15 @@ export default async function SpecialistsPage() {
                     <td className={`${td} tabular-nums`}>{r.planned}</td>
                     <td className={`${td} tabular-nums`}>{t.money(r.revenue)}</td>
                     <td className={`${td} font-semibold tabular-nums`}>{t.money(r.salary)}</td>
+                    {/* Chiziq: kim ko'p ishlaganini raqamlarni solishtirmasdan ko'rsatadi */}
+                    <td className={`${td} w-24`}>
+                      <span className="block h-[7px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <span
+                          className="block h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
+                          style={{ width: `${Math.round((r.salary / maxSalary) * 100)}%` }}
+                        />
+                      </span>
+                    </td>
                     <td className={td}>
                       <form action={toggleSpecialistActive}>
                         <input type="hidden" name="specialistId" value={r.id} />
@@ -208,7 +226,7 @@ export default async function SpecialistsPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-slate-100 dark:border-slate-800">
-                    <td colSpan={branchId ? 10 : 11} className="px-4 pb-2">
+                    <td colSpan={branchId ? 11 : 12} className="px-4 pb-2">
                       <details data-autoclose>
                         <summary className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                           ✎ {t("Tahrirlash")}

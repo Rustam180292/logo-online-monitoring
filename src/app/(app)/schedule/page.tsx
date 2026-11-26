@@ -24,6 +24,7 @@ import {
   label,
 } from "@/components/ui";
 import { createSession, deleteSession, setSessionStatus } from "./actions";
+import { WeekGrid } from "./week-grid";
 
 type Search = { w?: string; b?: string; s?: string; yangi?: string };
 
@@ -344,14 +345,27 @@ export default async function SchedulePage({
         </details>
       ) : null}
 
+      {/* Avval butun hafta bir ekranda, keyin kunlik ro'yxat: panjara
+          "qayerda teshik bor" ni, ro'yxat esa "nima qilish kerak" ni aytadi */}
+      <WeekGrid
+        from={from}
+        sessions={sessions.map((s) => ({
+          id: s.id,
+          startsAt: s.startsAt,
+          status: s.status,
+          clientName: s.client.fullName,
+          specialistName: s.specialist.user.fullName,
+        }))}
+      />
+
       <div className="space-y-4">
-        {days.map((day) => {
+        {days.map((day, dayIndex) => {
           const key = dateShort(day);
           const list = byDay.get(key) ?? [];
           const isToday = key === todayKey;
           return (
+            <div key={key} id={`kun-${dayIndex}`} className="scroll-mt-20">
             <Card
-              key={key}
               title={`${t.weekday(day)}, ${key}`}
               subtitle={isToday ? t("bugun") : undefined}
               className={isToday ? "ring-2 ring-indigo-500/30" : ""}
@@ -428,6 +442,7 @@ export default async function SchedulePage({
                 </ul>
               )}
             </Card>
+            </div>
           );
         })}
       </div>
