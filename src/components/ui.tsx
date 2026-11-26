@@ -102,11 +102,13 @@ export function StatCard({
   label: string;
   value: string;
   hint?: string;
-  tone?: "default" | "good" | "warn" | "bad";
+  tone?: "default" | "accent" | "good" | "warn" | "bad";
   href?: string;
 }) {
   const tones = {
     default: "text-slate-900 dark:text-white",
+    // Sahifadagi eng muhim bitta raqam uchun — ilovaning asosiy rangi
+    accent: "text-indigo-600 dark:text-indigo-400",
     good: "text-emerald-600 dark:text-emerald-400",
     warn: "text-amber-600 dark:text-amber-400",
     bad: "text-rose-600 dark:text-rose-400",

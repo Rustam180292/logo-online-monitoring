@@ -2,7 +2,12 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useT } from "@/components/i18n";
-import { td, th } from "@/components/ui";
+import { td } from "@/components/ui";
+
+/* Ustun sarlavhalari: katta harf va keng oraliq o'rniga oddiy gap yozuvi —
+   jadval sokinroq bo'ladi, raqamlar ko'zga birinchi tashlanadi */
+const headCell =
+  "whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400";
 
 export type DataColumn = {
   label: string;
@@ -100,14 +105,14 @@ export function DataTable({
                 return (
                   <th
                     key={c.label + i}
-                    className={`${th} ${c.className ?? ""}`}
+                    className={`${headCell} ${c.className ?? ""}`}
                     aria-sort={active ? (sort!.dir === 1 ? "ascending" : "descending") : undefined}
                   >
                     {canSort ? (
                       <button
                         type="button"
                         onClick={() => toggle(i)}
-                        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-800 dark:hover:text-slate-200"
+                        className="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-slate-200"
                         title={t("Tartiblash")}
                       >
                         {c.label}

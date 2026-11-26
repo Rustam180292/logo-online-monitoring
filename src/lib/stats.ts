@@ -359,3 +359,51 @@ export async function getSpecialistBalances(opts: {
     };
   });
 }
+
+export type DayCount = {
+  /** Kun boshi (markaz vaqtida) */
+  day: Date;
+  done: number;
+  noShow: number;
+  planned: number;
+};
+
+/**
+ * Oy davomida kunlar bo'yicha seanslar — paneldagi ustunli diagramma uchun.
+ *
+ * Bitta so'rov bilan olinadi: oyda 400-500 seans bo'lishi mumkin, ularni
+ * sahifaga tortib kelib JS'da sanashning hojati yo'q.
+ *
+ * `branchWhere()` ning mantig'i shu yerda qo'lda yozilgan: filial tanlanmasa
+ * "butun markaz" degani yakka mutaxassislarsiz demakdir.
+ */
+export async function getDailySessions(opts: {
+  branchId?: string | null;
+  from: Date;
+  to: Date;
+}): Promise<DayCount[]> {
+  const { branchId, from, to } = opts;
+  // Bitta so'rovning ikki ko'rinishi: filial tanlangan bo'lsa o'sha filial,
+  // bo'lmasa butun markaz (yakka mutaxassislarning filiallarisiz)
+  const rows = branchId
+    ? await prisma.$queryRaw<DayCount[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COUNT(*) FILTER (WHERE s."status" = 'DONE')::int AS "done",
+               COUNT(*) FILTER (WHERE s."status" = 'NO_SHOW')::int AS "noShow",
+               COUNT(*) FILTER (WHERE s."status" = 'PLANNED')::int AS "planned"
+          FROM "Session" s
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND s."branchId" = ${branchId}
+         GROUP BY 1 ORDER BY 1`
+    : await prisma.$queryRaw<DayCount[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COUNT(*) FILTER (WHERE s."status" = 'DONE')::int AS "done",
+               COUNT(*) FILTER (WHERE s."status" = 'NO_SHOW')::int AS "noShow",
+               COUNT(*) FILTER (WHERE s."status" = 'PLANNED')::int AS "planned"
+          FROM "Session" s
+          JOIN "Branch" b ON b."id" = s."branchId"
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND b."isSolo" = false
+         GROUP BY 1 ORDER BY 1`;
+  return rows;
+}
