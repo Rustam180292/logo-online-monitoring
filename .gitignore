@@ -21,3 +21,6 @@ src/generated/
 
 # zaxira nusxalar (ichida shaxsiy ma'lumot bor, git'ga tushmasin)
 zaxira/
+
+# biznes tahlili (founder-skill): narx, harajat va rejalar — ochiq repoda turmasin
+founder/
