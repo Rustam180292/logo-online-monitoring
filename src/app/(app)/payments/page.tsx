@@ -98,6 +98,11 @@ export default async function PaymentsPage({
     sum:
       payments.filter((p) => p.method === m).reduce((s, p) => s + p.amount, 0) +
       intakes.filter((i) => i.method === m).reduce((s, i) => s + i.price, 0),
+    // Summa yonida soni: "5 200 000" ning orqasida 2 ta katta to'lov turibdimi
+    // yoki 40 ta kichikmi — bu boshqa-boshqa manzara
+    count:
+      payments.filter((p) => p.method === m).length +
+      intakes.filter((i) => i.method === m).length,
   }));
 
   // Egasi barcha filiallarni ko'radi — ro'yxatni filial bo'yicha guruhlaymiz
@@ -201,7 +206,11 @@ export default async function PaymentsPage({
         </div>
         {byMethod.map((m) => (
           <div key={m.method} className="lg:col-span-2">
-            <StatCard label={t(PAYMENT_METHODS[m.method])} value={t.money(m.sum)} />
+            <StatCard
+              label={t(PAYMENT_METHODS[m.method])}
+              value={t.money(m.sum)}
+              hint={t("{n} ta to'lov", { n: m.count })}
+            />
           </div>
         ))}
       </div>

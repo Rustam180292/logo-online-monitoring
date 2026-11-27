@@ -424,26 +424,43 @@ export default async function ClientsPage({
                     {user.role === "OWNER" ? <td className={td}>{c.branch.name}</td> : null}
                     {showSpecialist ? (
                     <td className={td}>
-                      <div className="flex flex-wrap gap-1">
+                      {/* Ikkitadan ko'pi "+N" bo'lib yig'iladi: aks holda ustun
+                          kengayib ketadi va o'ngdagi pul ustunlari ekrandan chiqadi */}
+                      <div className="flex flex-wrap items-baseline gap-x-2">
                         {c.specialists.length === 0 ? (
                           <span className="text-xs text-slate-400">—</span>
                         ) : (
-                          c.specialists.map((a) => (
-                            <span key={a.id} className="block whitespace-nowrap">
-                              <span className="text-sm text-slate-700 dark:text-slate-300">
-                                {a.specialist.user.fullName}
+                          <>
+                            {c.specialists.slice(0, 2).map((a) => (
+                              <span key={a.id} className="block whitespace-nowrap">
+                                <span className="text-sm text-slate-700 dark:text-slate-300">
+                                  {a.specialist.user.fullName}
+                                </span>
+                                <span className="ml-1.5 inline-block max-w-[110px] truncate align-bottom text-xs text-slate-400">
+                                  {t(SPECIALIZATIONS[a.specialist.specialization as Specialization])}
+                                </span>
                               </span>
-                              <span className="ml-1.5 inline-block max-w-[120px] truncate align-bottom text-xs text-slate-400">
-                                {t(SPECIALIZATIONS[a.specialist.specialization as Specialization])}
+                            ))}
+                            {c.specialists.length > 2 ? (
+                              <span
+                                className="text-xs text-slate-400"
+                                title={c.specialists
+                                  .slice(2)
+                                  .map((a) => a.specialist.user.fullName)
+                                  .join(", ")}
+                              >
+                                +{c.specialists.length - 2}
                               </span>
-                            </span>
-                          ))
+                            ) : null}
+                          </>
                         )}
                       </div>
                     </td>
                     ) : null}
                     <td className={td}>
-                      {c.parentName}
+                      <span className="block max-w-[150px] truncate" title={c.parentName}>
+                        {c.parentName}
+                      </span>
                       <span className="block text-xs text-slate-400">{c.parentPhone}</span>
                       {c.parent?.telegramId ? (
                         <span className="mt-0.5 block text-xs text-emerald-600 dark:text-emerald-400">

@@ -162,7 +162,7 @@ export default async function SpecialistsPage() {
           <Empty>{t("Mutaxassis yo'q.")}</Empty>
         ) : (
           <div className="scroll-x">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[1080px]">
               <thead className="border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className={th}>{t("Mutaxassis")}</th>
