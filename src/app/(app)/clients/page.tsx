@@ -218,7 +218,8 @@ export default async function ClientsPage({
   const moneyCols = canManage ? 3 : 0;
   // Yakka logopedning hamma mijozi o'ziniki — "Mutaxassis" ustuni joyni bekorga oladi
   const showSpecialist = !isSolo(user);
-  const colCount = (user.role === "OWNER" ? 6 : 5) + moneyCols - (showSpecialist ? 0 : 1);
+  // Bola (yoshi va filiali ichida), Mutaxassis, Ota-ona, pul ustunlari, Holat
+  const colCount = 4 + moneyCols - (showSpecialist ? 0 : 1);
 
   return (
     <>
@@ -364,21 +365,25 @@ export default async function ClientsPage({
           <Empty>{t("Hali mijoz qo'shilmagan.")}</Empty>
         ) : (
           <div className="scroll-x">
-            <table className="w-full min-w-[1000px]">
+            <table className="w-full min-w-[880px]">
               <thead className="border-b border-slate-200 dark:border-slate-800">
                 <tr>
+                  {/* Yoshi va filial "Bola" ustunining ichida: shunda pul
+                      ustunlari ekranga sig'adi — ro'yxatning asosiy maqsadi
+                      kim qancha to'laganini ko'rsatish */}
                   <th className={th}>{t("Bola")}</th>
-                  <th className={th}>{t("Yoshi")}</th>
-                  {user.role === "OWNER" ? <th className={th}>{t("Filial")}</th> : null}
                   {showSpecialist ? <th className={th}>{t("Mutaxassis")}</th> : null}
                   <th className={th}>{t("Ota-ona")}</th>
                   {canManage ? (
                     <>
-                      <th className={`${th} text-right`}>{t("To'langan")}</th>
-                      <th className={`${th} text-right`} title={t("\"O'tdi\" va \"Kelmadi\" seanslar narxi")}>
+                      <th className={`${th} px-3 text-right`}>{t("To'langan")}</th>
+                      <th
+                        className={`${th} w-[92px] px-3 text-right whitespace-normal`}
+                        title={t("\"O'tdi\" va \"Kelmadi\" seanslar narxi")}
+                      >
                         {t("Xizmatlar uchun")}
                       </th>
-                      <th className={`${th} text-right`} title={t("To'langan − xizmatlar uchun")}>
+                      <th className={`${th} px-3 text-right`} title={t("To'langan − xizmatlar uchun")}>
                         {t("Qoldiq")}
                       </th>
                     </>
@@ -412,6 +417,10 @@ export default async function ClientsPage({
                           >
                             {c.fullName}
                           </Link>
+                          <span className="block text-xs text-slate-500 dark:text-slate-400">
+                            {t.age(c.birthDate)}
+                            {user.role === "OWNER" ? ` · ${c.branch.name}` : ""}
+                          </span>
                           {c.diagnosis ? (
                             <span className="block max-w-[220px] truncate text-xs text-slate-400">
                               {c.diagnosis}
@@ -420,8 +429,7 @@ export default async function ClientsPage({
                         </span>
                       </span>
                     </td>
-                    <td className={td}>{t.age(c.birthDate)}</td>
-                    {user.role === "OWNER" ? <td className={td}>{c.branch.name}</td> : null}
+
                     {showSpecialist ? (
                     <td className={td}>
                       {/* Ikkitadan ko'pi "+N" bo'lib yig'iladi: aks holda ustun
@@ -436,7 +444,7 @@ export default async function ClientsPage({
                                 <span className="text-sm text-slate-700 dark:text-slate-300">
                                   {a.specialist.user.fullName}
                                 </span>
-                                <span className="ml-1.5 inline-block max-w-[110px] truncate align-bottom text-xs text-slate-400">
+                                <span className="ml-1.5 inline-block max-w-[84px] truncate align-bottom text-xs text-slate-400">
                                   {t(SPECIALIZATIONS[a.specialist.specialization as Specialization])}
                                 </span>
                               </span>
@@ -458,7 +466,7 @@ export default async function ClientsPage({
                     </td>
                     ) : null}
                     <td className={td}>
-                      <span className="block max-w-[150px] truncate" title={c.parentName}>
+                      <span className="block max-w-[128px] truncate" title={c.parentName}>
                         {c.parentName}
                       </span>
                       <span className="block text-xs text-slate-400">{c.parentPhone}</span>
@@ -481,15 +489,15 @@ export default async function ClientsPage({
                       const balance = paid - earned;
                       return (
                         <>
-                          <td className={`${td} whitespace-nowrap text-right tabular-nums`} data-testid="client-paid">
+                          <td className={`${td} whitespace-nowrap px-3 text-right tabular-nums`} data-testid="client-paid">
                             {t.money(paid)}
                           </td>
-                          <td className={`${td} whitespace-nowrap text-right tabular-nums`} data-testid="client-earned">
+                          <td className={`${td} whitespace-nowrap px-3 text-right tabular-nums`} data-testid="client-earned">
                             {t.money(earned)}
                           </td>
                           {/* Musbat — oldindan to'langan, manfiy — qarz. Rang span'da:
                               td o'z matn rangini beradi va u ustun kelib qolardi */}
-                          <td className={`${td} whitespace-nowrap text-right tabular-nums`} data-testid="client-balance">
+                          <td className={`${td} whitespace-nowrap px-3 text-right tabular-nums`} data-testid="client-balance">
                             <span
                               className={`font-semibold ${
                                 balance < 0

@@ -68,6 +68,8 @@ export function ClientFilters({
 
   return (
     <tr className="border-b border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40">
+      {/* Ism, yosh va filial bitta katakda: jadvalda ham ular bitta
+          ustunda — bolaning nomi ostida turadi */}
       <td className="px-4 py-2">
         <input
           value={name}
@@ -79,39 +81,37 @@ export function ClientFilters({
           aria-label={t("Ism bo'yicha filtr")}
           className={cell}
         />
-      </td>
-      <td className="px-4 py-2">
-        <select
-          value={params.get("age") ?? ""}
-          onChange={(e) => apply({ age: e.target.value })}
-          aria-label={t("Yosh bo'yicha filtr")}
-          className={cell}
-        >
-          <option value="">{t("Hammasi")}</option>
-          {ages.map((a) => (
-            <option key={a} value={String(a)}>
-              {t("{n} yosh", { n: a })}
-            </option>
-          ))}
-        </select>
-      </td>
-      {branches.length > 0 ? (
-        <td className="px-4 py-2">
+        <div className="mt-1 flex gap-1">
           <select
-            value={params.get("b") ?? ""}
-            onChange={(e) => apply({ b: e.target.value })}
-            aria-label={t("Filial bo'yicha filtr")}
+            value={params.get("age") ?? ""}
+            onChange={(e) => apply({ age: e.target.value })}
+            aria-label={t("Yosh bo'yicha filtr")}
             className={cell}
           >
-            <option value="">{t("Hammasi")}</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+            <option value="">{t("Yoshi: hammasi")}</option>
+            {ages.map((a) => (
+              <option key={a} value={String(a)}>
+                {t("{n} yosh", { n: a })}
               </option>
             ))}
           </select>
-        </td>
-      ) : null}
+          {branches.length > 0 ? (
+            <select
+              value={params.get("b") ?? ""}
+              onChange={(e) => apply({ b: e.target.value })}
+              aria-label={t("Filial bo'yicha filtr")}
+              className={cell}
+            >
+              <option value="">{t("Filial: hammasi")}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      </td>
       {showSpecialist ? (
         <td className="px-4 py-2">
           <select

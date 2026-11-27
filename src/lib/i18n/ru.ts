@@ -1025,4 +1025,6 @@ export const ru: Record<string, string> = {
   "Google jadval": "Google-таблица",
   "Bo'limlar": "Разделы",
   "{done} / {all}": "{done} / {all}",
+  "Yoshi: hammasi": "Возраст: все",
+  "Filial: hammasi": "Филиал: все",
 };

@@ -1025,4 +1025,6 @@ export const en: Record<string, string> = {
   "Google jadval": "Google Sheet",
   "Bo'limlar": "Sections",
   "{done} / {all}": "{done} / {all}",
+  "Yoshi: hammasi": "Age: all",
+  "Filial: hammasi": "Branch: all",
 };
