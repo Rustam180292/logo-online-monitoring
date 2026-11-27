@@ -1027,4 +1027,9 @@ export const en: Record<string, string> = {
   "{done} / {all}": "{done} / {all}",
   "Yoshi: hammasi": "Age: all",
   "Filial: hammasi": "Branch: all",
+  "Kun": "Day",
+  "Bu haftaga qaytish": "Back to this week",
+  "ustunlar — kunlar, katakni bossangiz o'sha kunga tushadi": "columns are days — tap a cell to jump to that day",
+  "Bekor qilinganlarsiz": "Hide cancelled",
+  "Barcha mutaxassislar": "All specialists",
 };

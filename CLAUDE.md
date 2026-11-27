@@ -35,9 +35,14 @@ bo'lsin. Telegram bot va SMS xabarlari hozircha faqat o'zbekcha (oluvchining
 tili noma'lum).
 
 Rejim (tun/kun) `<html>` dagi `dark` klassi bilan boshqariladi, `dark:`
-klasslari qurilma mavzusiga emas, shu klassga qaraydi. Kunduzgi rejim ranglari
-`globals.css` da Tailwind rang o'zgaruvchilarini almashtirish orqali beriladi
-— tungi rejim ranglariga tegmang.
+klasslari qurilma mavzusiga emas, shu klassga qaraydi. **Ikkala rejimning
+ranglari ham `globals.css` da** Tailwind rang o'zgaruvchilarini almashtirish
+orqali beriladi: `html:not(.dark)` — iliq tosh fon, oq kartalar, to'q
+yashil-ko'k (teal) asosiy rang; `html.dark` — iliq to'q fon va o'sha teal
+(ochroq tusda, to'q fonda o'qilsin). Sahifalarda rang klasslari o'zgarmaydi
+(`bg-slate-50`, `text-indigo-600` ...) — faqat shu ikki blokdagi qiymatlar.
+Yangi rang qo'shsangiz, ikkalasiga ham qo'ying va matn fonida 4.5:1 dan
+o'tishini tekshiring.
 
 Izoh yozganda "nima qilinyapti" emas, **"nega shunday qilingan"** ni yozing: kod
 nima qilishini o'zi ko'rsatib turadi.

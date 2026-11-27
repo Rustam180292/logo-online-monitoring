@@ -195,7 +195,7 @@ if (!cookieMatch) {
     const light = await shellBg("light");
     check(
       "Mini App'da tungi va kunduzgi rejim almashadi",
-      dark.startsWith("rgb(2, 6, 23)") && light.startsWith("rgb(243, 242, 239)"),
+      dark.startsWith("rgb(18, 19, 17)") && light.startsWith("rgb(243, 242, 239)"),
       `${dark} / ${light}`,
     );
     await ctx.clearCookies({ name: "theme" });

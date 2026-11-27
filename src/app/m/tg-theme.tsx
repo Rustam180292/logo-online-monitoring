@@ -21,7 +21,7 @@ export function TelegramThemeSync() {
     const apply = () => {
       const tg = (window as unknown as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp;
       if (!tg?.initData) return;
-      const color = document.documentElement.classList.contains("dark") ? "#020617" : "#f3f2ef";
+      const color = document.documentElement.classList.contains("dark") ? "#121311" : "#f3f2ef";
       try {
         tg.setHeaderColor?.(color);
         tg.setBackgroundColor?.(color);

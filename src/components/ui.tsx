@@ -171,7 +171,9 @@ export function HeroStat({
   children?: ReactNode;
 }) {
   return (
-    <section className="flex h-full min-h-[118px] flex-col gap-3 rounded-2xl bg-slate-900 p-5 text-white dark:ring-1 dark:ring-indigo-900/70">
+    // Tungi rejimda oddiy karta ham to'q — shuning uchun bu yerda teal tusli
+    // fon: sahifaning asosiy raqami baribir ajralib tursin
+    <section className="flex h-full min-h-[118px] flex-col gap-3 rounded-2xl bg-slate-900 p-5 text-white dark:bg-indigo-950 dark:ring-1 dark:ring-indigo-900">
       <div className="flex items-center justify-between gap-3">
         <span className="text-[13px] text-white/70">{label}</span>
         {badge ? (

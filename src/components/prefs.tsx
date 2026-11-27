@@ -9,7 +9,7 @@ export const THEME_COOKIE = "theme";
 const YEAR = 60 * 60 * 24 * 365;
 
 /** Brauzer satrining rangi — root layout'dagi skript ham shu qiymatlarni qo'yadi */
-export const THEME_COLOR = { light: "#f3f2ef", dark: "#020617" } as const;
+export const THEME_COLOR = { light: "#f3f2ef", dark: "#121311" } as const;
 
 function setCookie(name: string, value: string) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${YEAR}; SameSite=Lax`;

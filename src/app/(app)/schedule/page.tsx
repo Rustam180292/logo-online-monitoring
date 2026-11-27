@@ -17,6 +17,7 @@ import {
   Card,
   Empty,
   PageHeader,
+  Segmented,
   btn,
   btnPrimary,
   card,
@@ -26,7 +27,7 @@ import {
 import { createSession, deleteSession, setSessionStatus } from "./actions";
 import { WeekGrid } from "./week-grid";
 
-type Search = { w?: string; b?: string; s?: string; yangi?: string };
+type Search = { w?: string; b?: string; s?: string; yangi?: string; kun?: string; bekor?: string };
 
 export default async function SchedulePage({
   searchParams,
@@ -41,6 +42,13 @@ export default async function SchedulePage({
   const offset = Number.parseInt(sp.w ?? "0", 10) || 0;
   const base = addDays(new Date(), offset * 7);
   const { from, to } = weekRange(base);
+
+  // Ko'rinish: hafta (ustunlar — kunlar) yoki kun (ustunlar — mutaxassislar)
+  const dayMode = sp.kun !== undefined && sp.kun !== "";
+  const todayIndex = Math.min(6, Math.max(0, Math.round((new Date().getTime() - weekRange(base).from.getTime()) / 86_400_000)));
+  const dayIndex = dayMode ? Math.min(6, Math.max(0, Number.parseInt(sp.kun ?? "", 10) || 0)) : todayIndex;
+  // Bekor qilinganlar panjarani chalg'itadi — ularni yashirib qo'yish mumkin
+  const hideCancelled = sp.bekor === "yoq";
 
   const canEdit = user.role !== "PARENT";
   const branchFilter =
@@ -124,8 +132,11 @@ export default async function SchedulePage({
   const showGroups = user.role === "OWNER";
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i));
+  const visible = hideCancelled
+    ? sessions.filter((x) => x.status !== "CANCELLED" && x.status !== "CANCELLED_CLIENT")
+    : sessions;
   const byDay = new Map<string, typeof sessions>();
-  for (const s of sessions) {
+  for (const s of visible) {
     const key = dateShort(s.startsAt);
     const list = byDay.get(key) ?? [];
     list.push(s);
@@ -133,77 +144,79 @@ export default async function SchedulePage({
   }
 
   const todayKey = dateShort(new Date());
-  const qs = (o: number) => {
-    const p = new URLSearchParams();
-    p.set("w", String(o));
-    if (sp.b) p.set("b", sp.b);
-    if (sp.s) p.set("s", sp.s);
-    return `/schedule?${p.toString()}`;
-  };
+  // Chip ko'rinishidagi tanlov — filtrlar jadvalning ustida, tugmachalar qatorida
+  const chipSelect =
+    "rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 " +
+    "focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
 
-  const done = sessions.filter((s) => s.status === "DONE").length;
-  const planned = sessions.filter((s) => s.status === "PLANNED").length;
+  /** Manzilni qayta yig'adi: faqat berilgan qismi o'zgaradi */
+  const link = (patch: Partial<Record<"w" | "b" | "s" | "kun" | "bekor", string | null>>) => {
+    const p = new URLSearchParams();
+    const base: Record<string, string | undefined> = {
+      w: offset !== 0 ? String(offset) : undefined,
+      b: sp.b || undefined,
+      s: sp.s || undefined,
+      kun: dayMode ? String(dayIndex) : undefined,
+      bekor: hideCancelled ? "yoq" : undefined,
+    };
+    for (const [k, v] of Object.entries({ ...base, ...patch })) {
+      if (v !== null && v !== undefined && v !== "") p.set(k, String(v));
+    }
+    const q = p.toString();
+    return q ? `/schedule?${q}` : "/schedule";
+  };
+  const qs = (o: number) => link({ w: o === 0 ? null : String(o) });
+
+  const done = visible.filter((s) => s.status === "DONE").length;
+  const planned = visible.filter((s) => s.status === "PLANNED").length;
 
   return (
     <>
       <PageHeader
-        title={t("Seanslar jadvali")}
-        subtitle={`${dateShort(from)} — ${dateShort(addDays(from, 6))} · ${t("{n} ta seans ({done} o'tdi, {planned} rejada)", { n: sessions.length, done, planned })}`}
+        title={t("Jadval")}
+        subtitle={`${dateShort(from)} — ${dateShort(addDays(from, 6))} · ${t("{n} ta seans ({done} o'tdi, {planned} rejada)", { n: visible.length, done, planned })}`}
         action={
-          <div className="flex items-center gap-2">
-            <Link href={qs(offset - 1)} className={btn}>
-              ← {t("O'tgan hafta")}
-            </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented
+              items={[
+                { href: link({ kun: null }), label: t("Hafta"), active: !dayMode },
+                { href: link({ kun: String(dayIndex) }), label: t("Kun"), active: dayMode },
+              ]}
+            />
+            {/* Hafta almashtirgich — bitta tugmachada: sarlavha qatori
+                tugmalar bilan to'lib ketmasin */}
+            <div className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
+              <Link
+                href={qs(offset - 1)}
+                aria-label={t("O'tgan hafta")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ‹
+              </Link>
+              <span className="whitespace-nowrap px-1.5 text-[13px] font-medium text-slate-800 dark:text-slate-200">
+                {offset === 0 ? t("Bu hafta") : `${dateShort(from)} — ${dateShort(addDays(from, 6))}`}
+              </span>
+              <Link
+                href={qs(offset + 1)}
+                aria-label={t("Keyingi hafta")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ›
+              </Link>
+            </div>
             {offset !== 0 ? (
               <Link href={qs(0)} className={btn}>
-                {t("Bu hafta")}
+                {t("Bu haftaga qaytish")}
               </Link>
             ) : null}
-            <Link href={qs(offset + 1)} className={btn}>
-              {t("Keyingi hafta")} →
-            </Link>
+            {canEdit && clients.length > 0 ? (
+              <Link href="#yangi" className={btnPrimary}>
+                + {t("Seans yozish")}
+              </Link>
+            ) : null}
           </div>
         }
       />
-
-      {(branches.length > 0 || specialistOptions.length > 1) && user.role !== "PARENT" ? (
-        <form method="get" className={`${card} mb-5 flex flex-wrap items-end gap-3 p-4`}>
-          <input type="hidden" name="w" value={offset} />
-          {branches.length > 0 ? (
-            <div className="min-w-[180px]">
-              <label className={label} htmlFor="b">
-                {t("Filial")}
-              </label>
-              <select id="b" name="b" defaultValue={sp.b ?? ""} className={input}>
-                <option value="">{t("Barcha filiallar")}</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          {user.role !== "SPECIALIST" && specialists.length > 0 ? (
-            <div className="min-w-[220px]">
-              <label className={label} htmlFor="s">
-                {t("Mutaxassis")}
-              </label>
-              <select id="s" name="s" defaultValue={sp.s ?? ""} className={input}>
-                <option value="">{t("Barchasi")}</option>
-                {specialists.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.user.fullName} — {t(SPECIALIZATIONS[s.specialization as Specialization])}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          <button type="submit" className={btnPrimary}>
-            {t("Filtrlash")}
-          </button>
-        </form>
-      ) : null}
 
       {canEdit && clients.length > 0 ? (
         <details id="yangi" data-autoclose open={Boolean(sp.yangi)} className={`${card} mb-5 p-4`}>
@@ -347,16 +360,105 @@ export default async function SchedulePage({
 
       {/* Avval butun hafta bir ekranda, keyin kunlik ro'yxat: panjara
           "qayerda teshik bor" ni, ro'yxat esa "nima qilish kerak" ni aytadi */}
-      <WeekGrid
-        from={from}
-        sessions={sessions.map((s) => ({
-          id: s.id,
-          startsAt: s.startsAt,
-          status: s.status,
-          clientName: s.client.fullName,
-          specialistName: s.specialist.user.fullName,
-        }))}
-      />
+      <Card
+        title={dayMode ? t("Kun") : t("Hafta")}
+        subtitle={
+          dayMode
+            ? `${t.weekday(days[dayIndex])}, ${dateShort(days[dayIndex])}`
+            : t("ustunlar — kunlar, katakni bossangiz o'sha kunga tushadi")
+        }
+        className="mb-5"
+        action={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-emerald-600" />
+              {t("o'tdi")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-slate-300 dark:bg-slate-600" />
+              {t("rejada")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-amber-600" />
+              {t("kelmadi")}
+            </span>
+          </div>
+        }
+      >
+        <div className="p-4" data-testid="week-grid">
+          {/* Filtrlar panjaraning ustida, chip ko'rinishida: ular jadvalga
+              tegishli, alohida kartada turishi shart emas */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {(branches.length > 0 || specialists.length > 0) && user.role !== "PARENT" ? (
+              <form method="get" className="flex flex-wrap items-center gap-2">
+                {offset !== 0 ? <input type="hidden" name="w" value={offset} /> : null}
+                {dayMode ? <input type="hidden" name="kun" value={dayIndex} /> : null}
+                {hideCancelled ? <input type="hidden" name="bekor" value="yoq" /> : null}
+                {branches.length > 0 ? (
+                  <select
+                    name="b"
+                    defaultValue={sp.b ?? ""}
+                    aria-label={t("Filial")}
+                    className={chipSelect}
+                  >
+                    <option value="">{t("Barcha filiallar")}</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {user.role !== "SPECIALIST" && specialists.length > 0 ? (
+                  <select
+                    name="s"
+                    defaultValue={sp.s ?? ""}
+                    aria-label={t("Mutaxassis")}
+                    className={chipSelect}
+                  >
+                    <option value="">{t("Barcha mutaxassislar")}</option>
+                    {specialists.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.user.fullName} — {t(SPECIALIZATIONS[x.specialization as Specialization])}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <button
+                  type="submit"
+                  className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                >
+                  {t("Filtrlash")}
+                </button>
+              </form>
+            ) : null}
+            <Link
+              href={link({ bekor: hideCancelled ? null : "yoq" })}
+              className={`rounded-full border px-3.5 py-1.5 text-[13px] transition ${
+                hideCancelled
+                  ? "border-indigo-600 bg-indigo-50 font-semibold text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                  : "border-slate-200 bg-white font-medium text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+              }`}
+            >
+              {t("Bekor qilinganlarsiz")}
+            </Link>
+          </div>
+          <WeekGrid
+            from={from}
+            mode={dayMode ? "kun" : "hafta"}
+            dayIndex={dayIndex}
+            dayHref={(i) => link({ kun: String(i) })}
+            sessions={visible.map((s) => ({
+              id: s.id,
+              startsAt: s.startsAt,
+              status: s.status,
+              clientName: s.client.fullName,
+              specialistId: s.specialistId,
+              specialistName: s.specialist.user.fullName,
+            }))}
+          />
+        </div>
+      </Card>
 
       <div className="space-y-4">
         {days.map((day, dayIndex) => {

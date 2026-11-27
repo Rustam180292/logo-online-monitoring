@@ -105,15 +105,15 @@ const isDark = (page) => page.evaluate(() => document.documentElement.classList.
   await login(page, owner.phone);
   check("Kirgandan keyin ham tanlangan rejim saqlanadi", await isDark(page));
 
-  // Kunduzgi rejimda fon mentol rangda, tungi rejim ranglari o'zgarmagan
-  // Tungi rejimda kunduzgi ranglar qo'llanmaydi: asosiy rang va fonlar asl Tailwind qiymatida
+  // Ikkala rejimning asosiy rangi bitta oiladan (teal), lekin fonlari
+  // bir-biriga aralashmaydi: tungi rejimda fon to'q bo'lib qolishi kerak
   const darkVars = await page.evaluate(() => {
     const css = getComputedStyle(document.documentElement);
-    return [css.getPropertyValue("--color-indigo-600").trim(), css.getPropertyValue("--color-slate-50").trim()];
+    return [css.getPropertyValue("--color-slate-950").trim(), css.getPropertyValue("--color-slate-100").trim()];
   });
   check(
-    "Tungi rejim ranglari avvalgidek",
-    darkVars[0] !== "#0f7a74" && darkVars[1] !== "#f7f6f3",
+    "Tungi rejimda fon to'q, matn och",
+    darkVars[0] === "#121311" && darkVars[1] === "#edebe3",
     darkVars.join(" / "),
   );
   await page.locator('[data-testid="topbar"] [data-testid="theme-toggle"]').click();
@@ -165,7 +165,7 @@ const isDark = (page) => page.evaluate(() => document.documentElement.classList.
   check("Hafta kunlari ruscha", /Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье/.test(text));
 
   await page.click('[data-testid="lang-uz"]');
-  await page.waitForFunction(() => document.body.innerText.includes("Seanslar jadvali"), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => document.body.innerText.includes("Jadval"), null, { timeout: 8000 }).catch(() => {});
   check("O'zbekchaga qaytadi", (await bodyText(page)).includes("Mijozlar"));
   await ctx.close();
 }

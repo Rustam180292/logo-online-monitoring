@@ -52,8 +52,7 @@ body {
  *
  * Sahifalardagi yuzlab klassni (bg-slate-50, text-indigo-600 ...) birma-bir
  * almashtirish o'rniga, kunduzgi rejimda faqat shu ranglarning qiymati
- * o'zgartiriladi. Tungi rejim (`.dark`) bunga tegmaydi — avvalgi ranglari
- * aynan saqlanadi.
+ * o'zgartiriladi. Tungi rejimniki pastda, alohida — ikkisi aralashmaydi.
  *
  * Har bir matn rangi fonda 4.5:1 dan o'tadi: kichik kul yozuvlar ham
  * o'qiladigan bo'lsin (shuning uchun slate-400 ham ancha to'q).
@@ -115,6 +114,71 @@ html:not(.dark) body {
   background: #f3f2ef;
 }
 
+
+/*
+ * Tungi rejim ranglari: iliq to'q fon (sovuq ko'kimtir emas) va kunduzgi
+ * rejimdagi teal. Ilgari bu yerda Tailwind'ning standart binafsha-ko'ki
+ * turardi — kunduzi teal, kechqurun binafsha bo'lib, ikki xil ilovaga
+ * o'xshab qolardi.
+ *
+ * To'q fonda och matn kerak: kul yozuvlar kunduzgidan ochroq, teal esa
+ * ochroq tusda (to'q teal to'q fonda o'qilmaydi). Tugmalardagi oq matn
+ * uchun esa to'q teal qoladi.
+ */
+html.dark {
+  /* fon va chegaralar */
+  --color-slate-950: #121311;
+  --color-slate-900: #1b1c18;
+  --color-slate-800: #2b2c26;
+  --color-slate-700: #3a3b34;
+  --color-slate-600: #4e4f47;
+  --color-slate-500: #6e6f66;
+  /* matn */
+  --color-slate-400: #a5a399;
+  --color-slate-300: #c7c5bc;
+  --color-slate-200: #dedcd3;
+  --color-slate-100: #edebe3;
+  --color-slate-50: #f6f4ec;
+  /* asosiy rang */
+  --color-indigo-950: #0b2422;
+  --color-indigo-900: #0e332f;
+  --color-indigo-700: #0b5f5a;
+  --color-indigo-600: #0f7a74;
+  --color-indigo-500: #159289;
+  --color-indigo-400: #4fb9ae;
+  --color-indigo-300: #7fcfc4;
+  --color-indigo-200: #a9ded6;
+  --color-indigo-100: #ccece7;
+  --color-indigo-50: #e6f4f1;
+  /* yaxshi xabar */
+  --color-emerald-950: #0d2a20;
+  --color-emerald-700: #1f6b52;
+  --color-emerald-600: #2e7d62;
+  --color-emerald-400: #65be9a;
+  --color-emerald-300: #8dd3b4;
+  --color-emerald-100: #cfe8dc;
+  --color-emerald-50: #e9f2ee;
+  /* ogohlantirish */
+  --color-amber-950: #2e1a0c;
+  --color-amber-900: #6c3519;
+  --color-amber-700: #a8552f;
+  --color-amber-600: #c2663a;
+  --color-amber-500: #d1884f;
+  --color-amber-400: #dfa06a;
+  --color-amber-300: #ebbe91;
+  --color-amber-200: #efd0b8;
+  --color-amber-100: #f7e3d5;
+  --color-amber-50: #fbefe6;
+  /* xato */
+  --color-rose-950: #30130f;
+  --color-rose-700: #9a362d;
+  --color-rose-600: #b8443a;
+  --color-rose-400: #e08d83;
+  --color-rose-300: #edaea6;
+  --color-rose-100: #f8d9d4;
+  --color-rose-50: #fcebe8;
+}
+
 /* Jadvallarni mobil ekranda gorizontal aylantirish uchun */
 .scroll-x {
   overflow-x: auto;
@@ -143,12 +207,15 @@ html:not(.dark) body {
 }
 
 .dark .app-shell {
-  background: #020617;
-  color: #f1f5f9;
+  background: #121311;
+  color: #edebe3;
 }
-.dark .app-card { background: #0f172a; }
-.dark .app-muted { color: #94a3b8; }
+.dark .app-card { background: #1b1c18; }
+.dark .app-muted { color: #a5a399; }
 
-/* Tungi rejimda telefon kabinetining asosiy rangi avvalgidek binafsha qoladi */
-.dark .app-link { color: #4f46e5; }
-.dark .app-accent { background: #4f46e5; }
+/* To'q fonda to'q teal o'qilmaydi — havola va urg'u ochroq tusda */
+.dark .app-link { color: #4fb9ae; }
+.dark .app-accent {
+  background: #0f7a74;
+  color: #ffffff;
+}

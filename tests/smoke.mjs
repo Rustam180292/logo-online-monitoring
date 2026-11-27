@@ -1287,8 +1287,8 @@ if (await payRow.count()) {
   await page.waitForLoadState("networkidle");
   const soloNav = await page.locator("aside").innerText();
   check(
-    "Yakka menyusida Panel, Seanslar jadvali, Konsultatsiya uchun qabullar, Hisobotlar bor",
-    ["Panel", "Seanslar jadvali", "Konsultatsiya uchun qabullar", "To'lovlar", "Hisobotlar", "Sozlamalar"]
+    "Yakka menyusida Panel, Jadval, Qabullar, Hisobotlar bor",
+    ["Panel", "Jadval", "Qabullar", "To'lovlar", "Hisobotlar", "Sozlamalar"]
       .every((x) => soloNav.includes(x)),
     soloNav.replace(/\n/g, " | "),
   );
@@ -2605,8 +2605,8 @@ if (!reception) {
   const recNav = await page.locator("aside").innerText();
   check(
     "Qabulxonaga faqat o'z ishi ko'rinadi",
-    recNav.includes("Seanslar jadvali") &&
-      recNav.includes("Konsultatsiya uchun qabullar") &&
+    recNav.includes("Jadval") &&
+      recNav.includes("Qabullar") &&
       recNav.includes("Mijozlar") &&
       recNav.includes("To'lovlar") &&
       !recNav.includes("Hisobotlar") &&

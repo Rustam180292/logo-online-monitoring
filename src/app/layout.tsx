@@ -51,7 +51,7 @@ export const viewport: Viewport = {
  * u HTML tahlil qilinayotgan paytda ishlaydi, ya'ni rang chaqnab ketmaydi.
  * Mavzu tanlanmagan bo'lsa qurilmaning o'z mavzusiga ergashadi.
  */
-const PREFS_SCRIPT = `(function(){try{var d=document.documentElement,c=document.cookie,m=c.match(/(?:^|; )theme=(light|dark)/),t=m?m[1]:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");d.classList.toggle("dark",t==="dark");d.style.colorScheme=t;var k=document.querySelector('meta[name="theme-color"]');if(k)k.setAttribute("content",t==="dark"?"#020617":"#f3f2ef");var l=c.match(/(?:^|; )lang=(uz|en|ru)/);if(l)d.lang=l[1]}catch(e){}})()`;
+const PREFS_SCRIPT = `(function(){try{var d=document.documentElement,c=document.cookie,m=c.match(/(?:^|; )theme=(light|dark)/),t=m?m[1]:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");d.classList.toggle("dark",t==="dark");d.style.colorScheme=t;var k=document.querySelector('meta[name="theme-color"]');if(k)k.setAttribute("content",t==="dark"?"#121311":"#f3f2ef");var l=c.match(/(?:^|; )lang=(uz|en|ru)/);if(l)d.lang=l[1]}catch(e){}})()`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1027,4 +1027,9 @@ export const ru: Record<string, string> = {
   "{done} / {all}": "{done} / {all}",
   "Yoshi: hammasi": "Возраст: все",
   "Filial: hammasi": "Филиал: все",
+  "Kun": "День",
+  "Bu haftaga qaytish": "Вернуться к этой неделе",
+  "ustunlar — kunlar, katakni bossangiz o'sha kunga tushadi": "столбцы — дни, нажмите на ячейку, чтобы перейти к этому дню",
+  "Bekor qilinganlarsiz": "Без отменённых",
+  "Barcha mutaxassislar": "Все специалисты",
 };
