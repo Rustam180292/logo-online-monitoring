@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { clientScope, requireUser, NOT_SOLO, isFrontDesk, isSolo } from "@/lib/auth";
 import { canSeeProgram } from "@/lib/program";
+import { readAnswers, scaleFields } from "@/lib/assessment";
 import { branchTypeScope } from "@/lib/session-types";
 import {
   BILLABLE_STATUSES,
@@ -144,6 +145,50 @@ export default async function ClientPage({
       select: { id: true, name: true, price: true },
     }),
   ]);
+  // Maketdagi "Keyingi mashg'ulot" va "Dinamika" bloklari uchun
+  const [nextSession, assessments] = await Promise.all([
+    prisma.session.findFirst({
+      where: { clientId: client.id, status: "PLANNED", startsAt: { gte: new Date() } },
+      orderBy: { startsAt: "asc" },
+      include: {
+        specialist: { include: { user: { select: { fullName: true } } } },
+        sessionType: { select: { name: true } },
+      },
+    }),
+    canSeeProgram(user)
+      ? prisma.assessment.findMany({
+          where: { clientId: client.id },
+          orderBy: { at: "desc" },
+          take: 2,
+          select: { id: true, at: true, answers: true, note: true, shareWithParent: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // Dinamika: oxirgi ikki baholashning shkalalari solishtiriladi. Variantlar
+  // doim "yomondan yaxshiga" tartibda — shuning uchun raqamning o'sishi yaxshilanish
+  const latest = assessments[0] ?? null;
+  const previous = assessments[1] ?? null;
+  const dynamics =
+    latest && previous
+      ? scaleFields()
+          .map((f) => {
+            const a = readAnswers(previous.answers)[f.key];
+            const b = readAnswers(latest.answers)[f.key];
+            if (typeof a !== "number" || typeof b !== "number") return null;
+            return {
+              key: f.key,
+              title: f.title,
+              from: a,
+              to: b,
+              max: f.options.length - 1,
+              fromLabel: f.options[a] ?? "",
+              toLabel: f.options[b] ?? "",
+            };
+          })
+          .filter((x): x is NonNullable<typeof x> => x !== null)
+      : [];
+
   const myServiceIds = new Set(client.services.map((x) => x.sessionTypeId));
   const freeServices = branchServices.filter((x) => !myServiceIds.has(x.id));
   const totalPaid = client.payments.reduce((s, p) => s + p.amount, 0);
@@ -204,6 +249,35 @@ export default async function ClientPage({
 
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
+          {/* Keyingi mashg'ulot — kartani ochgan odam birinchi shuni qidiradi */}
+          {nextSession ? (
+            <section className={`${card} p-5`} data-testid="next-session">
+              <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
+                {t("Keyingi mashg'ulot")}
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                {t.weekday(nextSession.startsAt)}, {timeUz(nextSession.startsAt)}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {nextSession.specialist.user.fullName}
+                {nextSession.sessionType ? ` · ${nextSession.sessionType.name}` : ""} ·{" "}
+                {t("{n} daqiqa", { n: nextSession.durationMin })}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {canManage ? (
+                  <Link href={`/schedule?kun=${toDateInput(nextSession.startsAt)}`} className={btn}>
+                    {t("Ko'chirish")}
+                  </Link>
+                ) : null}
+                {canSeeProgram(user) ? (
+                  <Link href={`/m/mashgulot/${nextSession.id}`} className={btn}>
+                    {t("Rejani ochish")}
+                  </Link>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
           {/* Markazda abonement yo'q — har seans alohida, kelganda to'lanadi.
               Ilgari sotilgan abonementlar bazada qoladi (seans narxi ulardan
               olinadi), lekin hech qayerda ko'rsatilmaydi. */}
@@ -367,6 +441,60 @@ export default async function ClientPage({
             <Card title={t("Mijoz ma'lumoti")} subtitle={t("xato yozilgan bo'lsa shu yerdan tuzating")}>
               <div className="p-4">
                 <ClientEditForm client={client} branches={branches} />
+              </div>
+            </Card>
+          ) : null}
+
+          {/* Dinamika: chapda oldingi baholash, o'ngda oxirgisi. Shkala
+              variantlari doim "yomondan yaxshiga" — chiziq uzunligi o'sish demak */}
+          {dynamics.length > 0 && latest && previous ? (
+            <Card
+              title={t("Dinamika")}
+              subtitle={t("chapda {oldin}, o'ngda {hozir} · yashil uzunligi — o'sish", {
+                oldin: dateShort(previous.at),
+                hozir: dateShort(latest.at),
+              })}
+            >
+              <ul className="flex flex-col gap-3 px-4 py-4">
+                {dynamics.map((d) => (
+                  <li key={d.key}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        {d.title}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                        {d.fromLabel} → {d.toLabel}
+                      </span>
+                    </div>
+                    <span className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <span
+                        className="block bg-slate-300 dark:bg-slate-600"
+                        style={{ width: `${Math.round((Math.min(d.from, d.to) / Math.max(1, d.max)) * 100)}%` }}
+                      />
+                      <span
+                        className={`block ${d.to >= d.from ? "bg-emerald-500" : "bg-rose-400"}`}
+                        style={{
+                          width: `${Math.round((Math.abs(d.to - d.from) / Math.max(1, d.max)) * 100)}%`,
+                        }}
+                      />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          {latest?.note ? (
+            <Card title={t("Mutaxassis xulosasi · {date}", { date: dateShort(latest.at) })}>
+              <div className="px-4 py-4">
+                <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                  {latest.note}
+                </p>
+                {latest.shareWithParent ? (
+                  <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500">
+                    {t("Bu xulosa ota-onaning kabinetida ham ko'rinadi.")}
+                  </p>
+                ) : null}
               </div>
             </Card>
           ) : null}

@@ -458,3 +458,37 @@ export async function getDailyCollected(opts: {
         ) d GROUP BY 1 ORDER BY 1`;
   return rows;
 }
+
+/**
+ * Kunlar bo'yicha hisoblangan ish haqi — hisobotdagi ustunli diagramma uchun.
+ *
+ * `getOverview().salary` bilan bir xil hisoblanadi: "O'tdi/Kelmadi" seansning
+ * narxi × seans bilan saqlangan foizi. Ikki joyda boshqacha hisoblansa,
+ * diagramma yuqoridagi raqamga mos kelmay qoladi.
+ */
+export async function getDailySalary(opts: {
+  branchId?: string | null;
+  from: Date;
+  to: Date;
+}): Promise<DayMoney[]> {
+  const { branchId, from, to } = opts;
+  const rows = branchId
+    ? await prisma.$queryRaw<DayMoney[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COALESCE(SUM(s."price" * s."salaryPercent" / 100.0), 0)::int AS "amount"
+          FROM "Session" s
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND s."branchId" = ${branchId}
+           AND s."status" IN ('DONE', 'NO_SHOW')
+         GROUP BY 1 ORDER BY 1`
+    : await prisma.$queryRaw<DayMoney[]>`
+        SELECT date_trunc('day', s."startsAt") AS "day",
+               COALESCE(SUM(s."price" * s."salaryPercent" / 100.0), 0)::int AS "amount"
+          FROM "Session" s
+          JOIN "Branch" b ON b."id" = s."branchId"
+         WHERE s."startsAt" >= ${from} AND s."startsAt" < ${to}
+           AND b."isSolo" = false
+           AND s."status" IN ('DONE', 'NO_SHOW')
+         GROUP BY 1 ORDER BY 1`;
+  return rows;
+}

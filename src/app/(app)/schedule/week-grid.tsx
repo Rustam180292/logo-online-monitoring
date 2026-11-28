@@ -29,12 +29,15 @@ export async function WeekGrid({
   mode,
   dayIndex,
   dayHref,
+  chipHref,
 }: {
   sessions: GridSession[];
   from: Date;
   mode: "hafta" | "kun";
   dayIndex: number;
   dayHref: (i: number) => string;
+  /** Katak bosilganda qayerga: o'ngdagi panelni ochadi va kunga tushiradi */
+  chipHref: (id: string, dayIndex: number) => string;
 }) {
   const t = await getT();
   if (sessions.length === 0) return null;
@@ -123,6 +126,7 @@ export async function WeekGrid({
             dayIndex={dayIndex}
             days={days}
             dayKey={dayKey}
+            chipHref={chipHref}
             t={t}
           />
         ))}
@@ -161,6 +165,7 @@ function Row({
   dayIndex,
   days,
   dayKey,
+  chipHref,
   t,
 }: {
   hour: number;
@@ -171,6 +176,7 @@ function Row({
   dayIndex: number;
   days: Date[];
   dayKey: (d: Date) => string;
+  chipHref: (id: string, dayIndex: number) => string;
   t: Awaited<ReturnType<typeof getT>>;
 }) {
   return (
@@ -193,7 +199,7 @@ function Row({
             {list.map((s) => (
               <Link
                 key={s.id}
-                href={`#kun-${anchor < 0 ? 0 : anchor}`}
+                href={chipHref(s.id, anchor < 0 ? 0 : anchor)}
                 title={`${timeUz(s.startsAt)} · ${s.clientName} · ${s.specialistName} · ${t(
                   SESSION_STATUSES[s.status as SessionStatus],
                 )}`}

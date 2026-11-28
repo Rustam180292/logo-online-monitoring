@@ -2,6 +2,8 @@ import { getSessionTypes } from "@/lib/session-types";
 import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { addDays } from "@/lib/stats";
+import { dateShort, timeUz } from "@/lib/format";
 import { branchWhere, clientScope, requireUser, NOT_SOLO, isFrontDesk, isSolo } from "@/lib/auth";
 import {
   BILLABLE_STATUSES,
@@ -17,7 +19,9 @@ import {
   Card,
   Empty,
   FilterChips,
+  KeyRow,
   PageHeader,
+  btn,
   btnPrimary,
   card,
   input,
@@ -40,6 +44,8 @@ type Search = {
   st?: string;
   tg?: string;
   qarz?: string;
+  /** O'ngdagi tez ko'rinishda ochilgan mijoz */
+  k?: string;
 };
 
 /**
@@ -221,6 +227,43 @@ export default async function ClientsPage({
   // Bola (yoshi va filiali ichida), Mutaxassis, Ota-ona, pul ustunlari, Holat
   const colCount = 4 + moneyCols - (showSpecialist ? 0 : 1);
 
+  // O'ngdagi tez ko'rinish: kartani ochmasdan "bu bola kim, qancha to'lagan"
+  const selected = rows.find((c) => c.id === sp.k) ?? null;
+  const now = new Date();
+  const [nextSession, lastMonth] = selected
+    ? await Promise.all([
+        prisma.session.findFirst({
+          where: { clientId: selected.id, status: "PLANNED", startsAt: { gte: now } },
+          orderBy: { startsAt: "asc" },
+          select: { startsAt: true },
+        }),
+        prisma.session.groupBy({
+          by: ["status"],
+          where: { clientId: selected.id, startsAt: { gte: addDays(now, -30), lt: now } },
+          _count: true,
+        }),
+      ])
+    : [null, []];
+  const last30Done = lastMonth.find((x) => x.status === "DONE")?._count ?? 0;
+  const last30NoShow = lastMonth.find((x) => x.status === "NO_SHOW")?._count ?? 0;
+
+  // "Diqqat talab qiladi": qarzdorlar soni va jami qarz
+  const debtTotal = canManage
+    ? earnedRows.reduce((sum, r) => {
+        const b = balanceOf(r.clientId);
+        return b < 0 ? sum + -b : sum;
+      }, 0)
+    : 0;
+
+  const pick = (id: string) => {
+    const q = new URLSearchParams();
+    for (const [key, val] of Object.entries(sp)) {
+      if (key !== "k" && typeof val === "string" && val) q.set(key, val);
+    }
+    q.set("k", id);
+    return `/clients?${q.toString()}`;
+  };
+
   return (
     <>
       <PageHeader
@@ -360,7 +403,8 @@ export default async function ClientsPage({
         </details>
       ) : null}
 
-      <Card>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Card className="min-w-0">
         {rows.length === 0 && !hasFilter ? (
           <Empty>{t("Hali mijoz qo'shilmagan.")}</Empty>
         ) : (
@@ -405,11 +449,13 @@ export default async function ClientsPage({
                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className={td}>
                       <span className="flex items-center gap-2.5">
-                        <Avatar
-                          name={c.fullName}
-                          size="sm"
-                          tone={canManage && balanceOf(c.id) < 0 ? "warn" : "default"}
-                        />
+                        <Link href={pick(c.id)} aria-label={t("Tez ko'rinish")} className="shrink-0">
+                          <Avatar
+                            name={c.fullName}
+                            size="sm"
+                            tone={canManage && balanceOf(c.id) < 0 ? "warn" : "default"}
+                          />
+                        </Link>
                         <span className="min-w-0">
                           <Link
                             href={`/clients/${c.id}`}
@@ -567,6 +613,146 @@ export default async function ClientsPage({
           </p>
         ) : null}
       </Card>
+
+      {/* O'ngdagi tez ko'rinish: kartani ochmasdan asosiy raqamlarni ko'rish */}
+      <aside className="flex min-w-0 flex-col gap-4">
+        {selected ? (
+          <section className={`${card} p-5`} data-testid="client-preview">
+            <div className="flex items-center gap-3">
+              <Avatar
+                name={selected.fullName}
+                size="lg"
+                tone={canManage && balanceOf(selected.id) < 0 ? "warn" : "default"}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-slate-900 dark:text-white">
+                  {selected.fullName}
+                </p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                  {t.age(selected.birthDate)}
+                  {user.role === "OWNER" ? ` · ${selected.branch.name}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {selected.status === "ARCHIVED" ? (
+                <Badge>{t("Arxivda")}</Badge>
+              ) : (
+                <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800">
+                  {t("Faol")}
+                </Badge>
+              )}
+              {selected.parent?.telegramId ? null : (
+                <Badge className="bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-800">
+                  {t("Botga ulanmagan")}
+                </Badge>
+              )}
+              {canManage && balanceOf(selected.id) < 0 ? (
+                <Badge className="bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-800">
+                  {t("Qarzdor")}
+                </Badge>
+              ) : null}
+            </div>
+
+            {canManage ? (
+              <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <KeyRow k={t("To'langan")} v={t.money(paidBy.get(selected.id) ?? 0)} />
+                <KeyRow k={t("Xizmatlar uchun")} v={t.money(earnedBy.get(selected.id) ?? 0)} />
+                <KeyRow
+                  k={t("Qoldiq")}
+                  v={
+                    <span
+                      className={
+                        balanceOf(selected.id) < 0
+                          ? "font-semibold text-rose-600 dark:text-rose-400"
+                          : "font-semibold text-emerald-600 dark:text-emerald-400"
+                      }
+                    >
+                      {t.money(balanceOf(selected.id))}
+                    </span>
+                  }
+                />
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 dark:border-slate-800">
+              <KeyRow
+                k={t("Mutaxassis")}
+                v={
+                  selected.specialists.length === 0
+                    ? "—"
+                    : selected.specialists
+                        .map((a) => a.specialist.user.fullName)
+                        .slice(0, 2)
+                        .join(", ")
+                }
+              />
+              <KeyRow
+                k={t("Keyingi seans")}
+                v={
+                  nextSession
+                    ? `${dateShort(nextSession.startsAt)} · ${timeUz(nextSession.startsAt)}`
+                    : t("rejada yo'q")
+                }
+              />
+              <KeyRow
+                k={t("Oxirgi 30 kun")}
+                v={t("{done} seans · {noShow} kelmadi", { done: last30Done, noShow: last30NoShow })}
+              />
+              <KeyRow k={t("Ota-ona")} v={`${selected.parentName} · ${selected.parentPhone}`} />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href={`/clients/${selected.id}`} className={btnPrimary}>
+                {t("Kartani ochish")}
+              </Link>
+              {canManage ? (
+                <Link href={`/clients/${selected.id}#tolov`} className={btn}>
+                  {t("To'lov")}
+                </Link>
+              ) : null}
+            </div>
+          </section>
+        ) : (
+          <section className={`${card} p-5`}>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("Ro'yxatdagi suratni bossangiz, bu yerda mijozning qisqa ko'rinishi chiqadi.")}
+            </p>
+          </section>
+        )}
+
+        {/* Diqqat talab qiladi: qarz bitta joyda ko'rinib tursin */}
+        {canManage && debtorCount > 0 ? (
+          <section className="rounded-2xl bg-amber-50 p-4 dark:bg-amber-950/40">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+              {t("Diqqat talab qiladi")}
+            </p>
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                  {t("Qoldig'i manfiy mijoz")}
+                </span>
+                <Link
+                  href="/clients?qarz=1"
+                  className="text-[13px] font-semibold text-amber-700 hover:underline dark:text-amber-300"
+                >
+                  {t("{n} ta", { n: debtorCount })}
+                </Link>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                  {t("Jami qarz")}
+                </span>
+                <span className="text-[13px] font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                  {t.money(debtTotal)}
+                </span>
+              </div>
+            </div>
+          </section>
+        ) : null}
+      </aside>
+      </div>
 
     </>
   );

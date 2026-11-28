@@ -16,6 +16,7 @@ import {
   Badge,
   Card,
   Empty,
+  KeyRow,
   PageHeader,
   Segmented,
   btn,
@@ -27,7 +28,16 @@ import {
 import { createSession, deleteSession, setSessionStatus } from "./actions";
 import { WeekGrid } from "./week-grid";
 
-type Search = { w?: string; b?: string; s?: string; yangi?: string; kun?: string; bekor?: string };
+type Search = {
+  w?: string;
+  b?: string;
+  s?: string;
+  yangi?: string;
+  kun?: string;
+  bekor?: string;
+  /** O'ngdagi panelda ochilgan seans */
+  sid?: string;
+};
 
 export default async function SchedulePage({
   searchParams,
@@ -150,7 +160,7 @@ export default async function SchedulePage({
     "focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
 
   /** Manzilni qayta yig'adi: faqat berilgan qismi o'zgaradi */
-  const link = (patch: Partial<Record<"w" | "b" | "s" | "kun" | "bekor", string | null>>) => {
+  const link = (patch: Partial<Record<"w" | "b" | "s" | "kun" | "bekor" | "sid", string | null>>) => {
     const p = new URLSearchParams();
     const base: Record<string, string | undefined> = {
       w: offset !== 0 ? String(offset) : undefined,
@@ -158,6 +168,7 @@ export default async function SchedulePage({
       s: sp.s || undefined,
       kun: dayMode ? String(dayIndex) : undefined,
       bekor: hideCancelled ? "yoq" : undefined,
+      sid: sp.sid || undefined,
     };
     for (const [k, v] of Object.entries({ ...base, ...patch })) {
       if (v !== null && v !== undefined && v !== "") p.set(k, String(v));
@@ -166,6 +177,18 @@ export default async function SchedulePage({
     return q ? `/schedule?${q}` : "/schedule";
   };
   const qs = (o: number) => link({ w: o === 0 ? null : String(o) });
+
+  // O'ngdagi panel: katakni bosganda seansning tafsiloti va belgilash tugmalari
+  const picked = visible.find((x) => x.id === sp.sid) ?? null;
+
+  // "Shu hafta" raqamlari: belgilanmagan seans ish haqini ham, kassani ham
+  // to'liq ko'rsatmaydi — shuning uchun alohida sanaladi
+  const nowTs = Date.now();
+  const weekStats = {
+    planned: visible.filter((x) => x.status === "PLANNED").length,
+    done: visible.filter((x) => x.status === "DONE").length,
+    unmarked: visible.filter((x) => x.status === "PLANNED" && x.startsAt.getTime() < nowTs).length,
+  };
 
   const done = visible.filter((s) => s.status === "DONE").length;
   const planned = visible.filter((s) => s.status === "PLANNED").length;
@@ -360,6 +383,7 @@ export default async function SchedulePage({
 
       {/* Avval butun hafta bir ekranda, keyin kunlik ro'yxat: panjara
           "qayerda teshik bor" ni, ro'yxat esa "nima qilish kerak" ni aytadi */}
+      <div className="mb-5 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
       <Card
         title={dayMode ? t("Kun") : t("Hafta")}
         subtitle={
@@ -448,6 +472,7 @@ export default async function SchedulePage({
             mode={dayMode ? "kun" : "hafta"}
             dayIndex={dayIndex}
             dayHref={(i) => link({ kun: String(i) })}
+            chipHref={(id, i) => `${link({ sid: id, kun: dayMode ? undefined : String(i) })}#kun-${i}`}
             sessions={visible.map((s) => ({
               id: s.id,
               startsAt: s.startsAt,
@@ -459,6 +484,84 @@ export default async function SchedulePage({
           />
         </div>
       </Card>
+
+      {/* O'ngdagi panel: katakni bosganda seans shu yerda ochiladi */}
+      <aside className="flex min-w-0 flex-col gap-4">
+        {picked ? (
+          <section className={`${card} p-5`} data-testid="session-panel">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500">
+                {t.weekday(picked.startsAt)}, {dateShort(picked.startsAt)} · {timeUz(picked.startsAt)}
+              </span>
+              <Badge className={SESSION_STATUS_STYLE[picked.status as SessionStatus]}>
+                {t(SESSION_STATUSES[picked.status as SessionStatus])}
+              </Badge>
+            </div>
+            <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
+              {picked.client.fullName}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {picked.branch.name}
+            </p>
+
+            <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 dark:border-slate-800">
+              <KeyRow k={t("Mutaxassis")} v={picked.specialist.user.fullName} />
+              <KeyRow k={t("Xizmat")} v={picked.sessionType?.name ?? "—"} />
+              <KeyRow k={t("Narx")} v={t.money(picked.price)} />
+              <KeyRow k={t("Davomiyligi")} v={t("{n} daqiqa", { n: picked.durationMin })} />
+            </div>
+
+            {picked.status === "PLANNED" ? (
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <StatusButton id={picked.id} status="DONE" title={t("O'tdi")} tone="good" />
+                <StatusButton id={picked.id} status="NO_SHOW" title={t("Kelmadi")} tone="warn" />
+              </div>
+            ) : null}
+
+            <Link
+              href={`/clients/${picked.clientId}`}
+              className="mt-4 block text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              {t("Mijoz kartasi")} →
+            </Link>
+          </section>
+        ) : (
+          <section className={`${card} p-5`}>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("Panjaradagi katakni bossangiz, seans shu yerda ochiladi.")}
+            </p>
+          </section>
+        )}
+
+        {/* Belgilanmagan seans ish haqini ham, kassani ham to'liq ko'rsatmaydi */}
+        <section className={`${card} p-5`}>
+          <p className="text-xs font-semibold text-slate-900 dark:text-white">{t("Shu hafta")}</p>
+          <div className="mt-3 flex flex-col gap-2">
+            <KeyRow k={t("Rejadagi seans")} v={String(weekStats.planned)} />
+            <KeyRow k={t("O'tgan seans")} v={String(weekStats.done)} />
+            <KeyRow
+              k={t("Belgilanmagan")}
+              v={
+                <span
+                  className={
+                    weekStats.unmarked > 0
+                      ? "font-semibold text-amber-600 dark:text-amber-400"
+                      : "font-semibold text-slate-700 dark:text-slate-300"
+                  }
+                >
+                  {weekStats.unmarked}
+                </span>
+              }
+            />
+          </div>
+          {weekStats.unmarked > 0 ? (
+            <p className="mt-3 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+              {t("Belgilanmagan seans ish haqi va kassani to'liq ko'rsatmaydi — kun oxirida belgilang.")}
+            </p>
+          ) : null}
+        </section>
+      </aside>
+      </div>
 
       <div className="space-y-4">
         {days.map((day, dayIndex) => {

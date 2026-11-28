@@ -301,6 +301,9 @@ model Intake {
   /// Mijozga aylangan bo'lsa — o'sha mijoz
   clientId     String?   @unique
   note         String?
+  /// Qayerdan eshitgan: Instagram, Telegram, tavsiya... Reklamani qayerga
+  /// qo'yishni shu raqam aytadi, shuning uchun ro'yxat emas, erkin matn.
+  source       String?
   createdById  String?
   createdAt    DateTime  @default(now())
 

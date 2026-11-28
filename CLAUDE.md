@@ -247,6 +247,14 @@ Buni o'zgartirishdan oldin tushunib oling:
   uchun `getOverview().collected` ga qo'shiladi va To'lovlar sahifasida alohida
   ro'yxat bo'lib ko'rinadi. Hisobotda "Konsultatsiyalardan" deb ajratib ham
   ko'rsatiladi. Bu uch joydagi raqam bir xil bo'lishi kerak.
+- **Qabul qayerdan kelgani** `Intake.source` — erkin matn (Instagram, tavsiya,
+  kanal...). Ro'yxat emas: markaz o'zi qanday yozsa shunday sanaladi, Qabullar
+  sahifasining o'ng tomonida eng ko'p uchragani chiziq bo'lib ko'rinadi.
+  Reklamani qayerga qo'yishni shu raqam aytadi.
+- **To'lovlarni faylga yuklash** `/api/payments.csv?m=&b=` — shu oydagi mijoz
+  to'lovlari va konsultatsiya puli bitta ro'yxatda. Doira sahifadagidek
+  (`branchWhere`), fayl boshida BOM (Excel'da harflar buzilmasin), "=" bilan
+  boshlangan matn oldiga "'" qo'yiladi.
 
 **Mijozni o'chirish** ikki xil (ikkalasi ham faqat egada, bolaning ismini
 yozib tasdiqlanadi):

@@ -95,6 +95,7 @@ async function createIntakeImpl(formData: FormData) {
       scheduledAt,
       price,
       note: String(formData.get("note") ?? "").trim() || null,
+      source: String(formData.get("source") ?? "").trim() || null,
       createdById: user.id,
     },
   });
@@ -154,6 +155,7 @@ async function updateIntakeImpl(formData: FormData) {
     scheduledAt,
     specialistId,
     note: String(formData.get("note") ?? "").trim() || null,
+    source: String(formData.get("source") ?? "").trim() || null,
   };
   if (!intake.paidAt) data.price = price;
 

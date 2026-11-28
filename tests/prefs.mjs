@@ -348,7 +348,7 @@ const PNG = Buffer.from(
   check(
     "Yon menyuda til/rejim/chiqish takrorlanmaydi",
     (await page.locator('aside [data-testid="theme-toggle"]').count()) === 0 &&
-      !(await page.locator("aside").innerText()).includes("Chiqish"),
+      !(await page.locator("aside").first().innerText()).includes("Chiqish"),
   );
 
   // Til tepa paneldan almashadi

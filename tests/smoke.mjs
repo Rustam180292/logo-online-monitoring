@@ -535,7 +535,7 @@ if (await payRow.count()) {
   // Har safar yangi raqam: test qayta ishga tushganda "raqam band" bo'lib qolmasin
   const phone = `+99890${String(Date.now()).slice(-7)}`;
 
-  await page.goto(`${BASE}/specialists`);
+  await page.goto(`${BASE}/specialists?kim=ega`);
   await page.waitForLoadState("networkidle");
 
   check(
@@ -575,7 +575,7 @@ if (await payRow.count()) {
   if (added) {
     const target = await one(`SELECT id FROM User WHERE phone='${phone}'`);
     const newPhone = `+99895${String(Date.now()).slice(-7)}`;
-    await page.goto(`${BASE}/specialists`);
+    await page.goto(`${BASE}/specialists?kim=ega`);
     await page.waitForLoadState("networkidle");
     const editBox = page.locator(`[data-testid="owner-edit"]:has(input[name="userId"][value="${target.id}"])`);
     await editBox.locator("summary").click();
@@ -599,7 +599,7 @@ if (await payRow.count()) {
     await login(owner.phone);
 
     // Band raqamni berib bo'lmaydi
-    await page.goto(`${BASE}/specialists`);
+    await page.goto(`${BASE}/specialists?kim=ega`);
     await page.waitForLoadState("networkidle");
     await editBox.locator("summary").click();
     await editBox.locator('input[name="phone"]').fill(owner.phone);
@@ -1283,7 +1283,7 @@ if (await payRow.count()) {
 
   /* --- Panel: egadagidek, faqat Xodimlar va Filiallarsiz --- */
   await page.waitForLoadState("networkidle");
-  const soloNav = await page.locator("aside").innerText();
+  const soloNav = await page.locator("aside").first().innerText();
   check(
     "Yakka menyusida Panel, Jadval, Qabullar, Hisobotlar bor",
     ["Panel", "Jadval", "Qabullar", "To'lovlar", "Hisobotlar", "Sozlamalar"]
@@ -1705,8 +1705,13 @@ if (await payRow.count()) {
   );
   check("Yangi qabul yoziladi", created, child);
 
-  const row = page.locator(`tr:has-text("${child}")`).first();
   await page.waitForLoadState("networkidle");
+  const pickIntake = async () => {
+    await page.locator(`[data-testid="intake-card"]:has-text("${child}")`).first().click();
+    await page.waitForLoadState("networkidle");
+    return page.locator('[data-testid="intake-panel"]');
+  };
+  const row = await pickIntake();
 
   // Hali o'tmagan qabulda "Mijozga o'tkazish" bo'lmaydi — nega ekani yozilsin
   check(
@@ -1722,10 +1727,10 @@ if (await payRow.count()) {
   check("Qabul 'bo'lib o'tdi' deb belgilanadi", held);
 
   // Konsultatsiya puli
-  await page.waitForLoadState("networkidle");
-  const payRow = page.locator(`tr:has-text("${child}")`).first();
-  await payRow.locator('input[name="price"]').fill("170000");
-  await payRow.locator('button:has-text("to\'landi")').click();
+  const payRow = await pickIntake();
+  const payForm = payRow.locator('form:has(button:has-text("To\'landi"))');
+  await payForm.locator('input[name="price"]').fill("170000");
+  await payForm.locator('button:has-text("To\'landi")').click();
   const paid = await waitUntil(async () => {
     const r = await one(`SELECT price, paidAt FROM Intake WHERE childName = '${child}'`);
     return r.price === 170000 && r.paidAt !== null;
@@ -1733,9 +1738,8 @@ if (await payRow.count()) {
   check("Konsultatsiya puli qabul qilinadi", paid, "170 000");
 
   // Mijozga o'tkazish
-  await page.waitForLoadState("networkidle");
   const clientsBefore = await count("SELECT COUNT(*) AS n FROM Client");
-  const convRow = page.locator(`tr:has-text("${child}")`).first();
+  const convRow = await pickIntake();
   await convRow.locator('button:has-text("Mijozga o\'tkazish")').click();
   const converted = await waitUntil(async () => {
     const r = await one(`SELECT clientId, result FROM Intake WHERE childName = '${child}'`);
@@ -1795,12 +1799,12 @@ if (await payRow.count()) {
     await page.waitForLoadState("networkidle");
 
     // Tahrirlash qatori — ichida "tahrirlash" ochilmasi bor qator
-    const editRow = page
-      .locator(`tr:has(input[name="intakeId"][value="${target.id}"])`)
-      .filter({ has: page.locator("summary") });
+    await page.locator(`[data-testid="intake-card"]:has-text("${target.childName}")`).first().click();
+    await page.waitForLoadState("networkidle");
+    const editRow = page.locator('[data-testid="intake-panel"]');
     await editRow.locator("summary").click();
 
-    const form = editRow.locator("form");
+    const form = editRow.locator("details form");
     // Sana shu oy ichida qolsin: aks holda qator ro'yxatdan chiqib ketadi va
     // testni qayta ishga tushirganda topilmay qoladi.
     const pad = (n) => String(n).padStart(2, "0");
@@ -1908,10 +1912,10 @@ if (await payRow.count()) {
   await page.waitForLoadState("networkidle");
 
   const editRow = page
-    .locator(`tr:has(input[name="specialistId"][value="${target.id}"])`)
+    .locator(`[data-testid="staff-card"]:has(input[name="specialistId"][value="${target.id}"])`)
     .filter({ has: page.locator("summary") });
   await editRow.locator("summary").click();
-  const form = editRow.locator("form");
+  const form = editRow.locator("details form");
 
   await form.locator('input[name="fullName"]').fill(`${target.fullName} (tahrir)`);
   await form.locator('input[name="phone"]').fill(newPhone);
@@ -1943,11 +1947,11 @@ if (await payRow.count()) {
   await page.goto(`${BASE}/specialists`);
   await page.waitForLoadState("networkidle");
   const again = page
-    .locator(`tr:has(input[name="specialistId"][value="${target.id}"])`)
+    .locator(`[data-testid="staff-card"]:has(input[name="specialistId"][value="${target.id}"])`)
     .filter({ has: page.locator("summary") });
   await again.locator("summary").click();
-  await again.locator('input[name="phone"]').fill(owner.phone);
-  await again.locator('button:has-text("Saqlash")').click();
+  await again.locator('details input[name="phone"]').fill(owner.phone);
+  await again.locator('details button:has-text("Saqlash")').click();
   const warned = page.getByRole("alert").filter({ hasText: "allaqachon" });
   check(
     "Band telefon raqam qabul qilinmaydi",
@@ -1962,13 +1966,13 @@ if (await payRow.count()) {
   await page.goto(`${BASE}/specialists`);
   await page.waitForLoadState("networkidle");
   const back = page
-    .locator(`tr:has(input[name="specialistId"][value="${target.id}"])`)
+    .locator(`[data-testid="staff-card"]:has(input[name="specialistId"][value="${target.id}"])`)
     .filter({ has: page.locator("summary") });
   await back.locator("summary").click();
-  await back.locator('input[name="fullName"]').fill(target.fullName);
-  await back.locator('input[name="phone"]').fill(target.phone);
-  await back.locator('select[name="specialization"]').selectOption(target.specialization);
-  await back.locator('button:has-text("Saqlash")').click();
+  await back.locator('details input[name="fullName"]').fill(target.fullName);
+  await back.locator('details input[name="phone"]').fill(target.phone);
+  await back.locator('details select[name="specialization"]').selectOption(target.specialization);
+  await back.locator('details button:has-text("Saqlash")').click();
   const restored = await waitUntil(async () => {
     const r = await one(
       `SELECT u.phone FROM Specialist s JOIN User u ON u.id = s.userId WHERE s.id = '${target.id}'`,
@@ -2313,10 +2317,10 @@ if (await payRow.count()) {
     const liveBefore = sheetsHits.length;
     await page.goto(`${BASE}/payments`);
     await page.waitForLoadState("networkidle");
-    await page.click('summary:has-text("To\'lov qabul qilish")');
+    // "Tez to'lov" yon panelda doim ochiq turadi — bo'lim ochish shart emas
     await page.selectOption("#clientId", target.id);
     await page.fill("#amount", String(amount));
-    await page.click('form button:has-text("Qabul qilish")');
+    await page.click('[data-testid="quick-payment"] button:has-text("Qabul qilish")');
     const fresh = () =>
       sheetsHits.slice(liveBefore).find((h) =>
         (h.data?.sheets?.["To'lovlar"] ?? []).some((r) => r[3] === amount),
@@ -2392,7 +2396,7 @@ check(
 // To'liq ko'rinishda ham menyu rolga mos bo'lishi kerak
 await page.goto(`${BASE}/schedule`);
 await page.waitForLoadState("networkidle");
-const navText = await page.locator("aside").innerText();
+const navText = await page.locator("aside").first().innerText();
 check(
   "Mutaxassisga to'lov/hisobot menyusi berkitilgan",
   !navText.includes("Hisobotlar") && !navText.includes("To'lovlar"),
@@ -2599,7 +2603,7 @@ if (!reception) {
     page.url(),
   );
 
-  const recNav = await page.locator("aside").innerText();
+  const recNav = await page.locator("aside").first().innerText();
   check(
     "Qabulxonaga faqat o'z ishi ko'rinadi",
     recNav.includes("Jadval") &&
@@ -2634,14 +2638,14 @@ if (!reception) {
   await page.waitForLoadState("networkidle");
   check("Qabulxona to'lovlar sahifasini ko'radi", (await page.content()).includes("Jami tushum"));
 
-  await page.click('summary:has-text("To\'lov qabul qilish")');
+  // "Tez to'lov" yon panelda doim ochiq turadi
   check(
     "To'lov formasida mijoz oldindan tanlanmagan",
     (await page.locator("#clientId").evaluate((el) => el.value)) === "",
   );
   await page.locator("#clientId").selectOption({ index: 1 });
   await page.fill("#amount", "150000");
-  await page.click('form button:has-text("Qabul qilish")');
+  await page.click('[data-testid="quick-payment"] button:has-text("Qabul qilish")');
   const recPaid = await waitUntil(
     async () => await count("SELECT COUNT(*) AS n FROM Payment") > recPayBefore,
   );

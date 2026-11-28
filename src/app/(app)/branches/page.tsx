@@ -1,11 +1,15 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { SPECIALIZATIONS, type Specialization } from "@/lib/constants";
 import { requireRole, NOT_SOLO } from "@/lib/auth";
 import { num } from "@/lib/format";
 import { monthRange } from "@/lib/stats";
 import { getSettings, minutesToTime } from "@/lib/settings";
 import {
+  Avatar,
   BarRow,
   Card,
+  KeyRow,
   Empty,
   PageHeader,
   btnPrimary,
@@ -16,9 +20,14 @@ import {
 import { createBranch, deleteBranch, updateBranch } from "./actions";
 import { getT } from "@/lib/i18n/server";
 
-export default async function BranchesPage() {
+export default async function BranchesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ f?: string }>;
+}) {
   await requireRole("OWNER");
   const t = await getT();
+  const sp = await searchParams;
   const { from, to } = monthRange();
 
   const [branches, settings] = await Promise.all([
@@ -56,6 +65,27 @@ export default async function BranchesPage() {
     const start = b.lunchStartMin ?? settings.lunchStartMin;
     const end = b.lunchEndMin ?? settings.lunchEndMin;
     return start != null && end != null ? `${minutesToTime(start)}–${minutesToTime(end)}` : null;
+  };
+
+  // O'ngdagi panel: filialning to'liq ma'lumoti va shu yerdagi xodimlar
+  const selected = branches.find((b) => b.id === sp.f) ?? branches[0] ?? null;
+  const selectedIndex = selected ? branches.indexOf(selected) : -1;
+  const staff = selected
+    ? await prisma.specialist.findMany({
+        where: { branchId: selected.id, isActive: true },
+        include: { user: { select: { fullName: true } } },
+        orderBy: { specialization: "asc" },
+        take: 8,
+      })
+    : [];
+
+  // Ish kunlari: filialniki bo'lsa o'shaniki, bo'lmasa markazning
+  const daysOf = (b: (typeof branches)[number]) => {
+    const raw = (b.workDays ?? "").trim();
+    const list = raw
+      ? raw.split(",").map((x) => Number(x.trim())).filter((n) => n >= 1 && n <= 7)
+      : settings.workDays;
+    return list.length > 0 ? list : settings.workDays;
   };
 
   const maxClients = Math.max(1, ...branches.map((b) => b._count.clients));
@@ -113,7 +143,8 @@ export default async function BranchesPage() {
         /* Jadval emas, kartochka: filial — bitta joy, uning raqamlari bir
            kartada turgani o'qishga oson. Jadval esa filiallarni solishtirish
            uchun edi — u pastda, chiziqlar bilan */
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-4">
           {branches.map((b, i) => (
             <section key={b.id} data-testid="branch-card" className={`${card} p-5`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -136,7 +167,9 @@ export default async function BranchesPage() {
                   </span>
                   <div className="min-w-0">
                     <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-                      {b.name}
+                      <Link href={`/branches?f=${b.id}`} className="hover:text-indigo-700 dark:hover:text-indigo-300">
+                        {b.name}
+                      </Link>
                     </h2>
                     {b.address ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400">{b.address}</p>
@@ -202,6 +235,92 @@ export default async function BranchesPage() {
               </div>
             </section>
           ))}
+        </div>
+
+        {/* O'ngdagi panel: filialning to'liq ma'lumoti va shu yerdagi xodimlar */}
+        <aside className="flex min-w-0 flex-col gap-4">
+          {selected ? (
+            <section className={`${card} p-5`} data-testid="branch-panel">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="truncate text-base font-semibold text-slate-900 dark:text-white">
+                  {selected.name}
+                </h2>
+                <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  {hoursOf(selected)}
+                </span>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <KeyRow k={t("Manzil")} v={selected.address || "—"} />
+                <KeyRow k={t("Telefon")} v={selected.phone || "—"} />
+                <KeyRow k={t("Tushlik")} v={lunchOf(selected) ?? t("belgilanmagan")} />
+                <KeyRow k={t("Mijoz")} v={num(selected._count.clients)} />
+                <KeyRow k={t("Mutaxassis")} v={num(selected._count.specialists)} />
+                <KeyRow
+                  k={t("Shu oy tushum")}
+                  v={t.money(selectedIndex >= 0 ? income[selectedIndex] : 0)}
+                />
+              </div>
+
+              <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                  {t("Ish kunlari")}
+                </span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                    const on = daysOf(selected).includes(d);
+                    return (
+                      <span
+                        key={d}
+                        className={`rounded-lg px-2 py-1 text-[11px] font-medium ${
+                          on
+                            ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                            : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600"
+                        }`}
+                      >
+                        {t.isoWeekday(d).slice(0, 2)}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  {t("Ish vaqti Sozlamalardan olinadi — filialga alohida qo'yilmagan bo'lsa markazniki.")}
+                </p>
+              </div>
+
+              {staff.length > 0 ? (
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                      {t("Shu filialdagi xodimlar")}
+                    </span>
+                    <Link
+                      href="/specialists"
+                      className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      {t("Hammasi")} →
+                    </Link>
+                  </div>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {staff.map((x) => (
+                      <div key={x.id} className="flex items-center gap-2.5">
+                        <Avatar name={x.user.fullName} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-slate-800 dark:text-slate-200">
+                            {x.user.fullName}
+                          </span>
+                          <span className="block truncate text-[11px] text-slate-400 dark:text-slate-500">
+                            {t(SPECIALIZATIONS[x.specialization as Specialization])}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+        </aside>
         </div>
       )}
 

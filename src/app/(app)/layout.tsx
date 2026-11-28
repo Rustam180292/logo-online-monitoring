@@ -111,8 +111,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             kirgan odam ularni birinchi qidiradi */}
         <header
           data-testid="topbar"
-          className="sticky top-0 z-30 hidden h-16 items-center justify-end border-b border-slate-200/80 bg-white/80 px-8 backdrop-blur lg:flex dark:border-slate-800 dark:bg-slate-900/80"
+          className="sticky top-0 z-30 hidden h-16 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/80 px-8 backdrop-blur lg:flex dark:border-slate-800 dark:bg-slate-900/80"
         >
+          {/* Qidiruv: xodim bolani ismidan qidiradi — ro'yxatni o'zi
+              filtrlaydigan Mijozlar sahifasiga olib boradi */}
+          {user.role === "SPECIALIST" ? (
+            <span />
+          ) : (
+            <form action="/clients" className="relative">
+              <label htmlFor="topSearch" className="sr-only">
+                {t("Qidirish")}
+              </label>
+              <input
+                id="topSearch"
+                name="n"
+                type="search"
+                placeholder={t("Bolaning yoki ota-onaning ismi")}
+                className="h-[38px] w-72 rounded-xl border border-slate-300 bg-white px-3 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </form>
+          )}
           <TopControls fullName={user.fullName} roleLine={roleLine} logout={logout} />
         </header>
 

@@ -179,6 +179,15 @@ export default async function PaymentsPage({
     return q ? `/payments?${q}` : "/payments";
   };
 
+  // Yuklab olinadigan fayl ham shu oy va shu filialga tegishli bo'lsin
+  const csvQuery = (() => {
+    const p = new URLSearchParams();
+    if (offset !== 0) p.set("m", String(offset));
+    if (sp.b) p.set("b", sp.b);
+    const q = p.toString();
+    return q ? `?${q}` : "";
+  })();
+
   return (
     <>
       <PageHeader
@@ -248,6 +257,13 @@ export default async function PaymentsPage({
             />
           </div>
         ))}
+        {/* Maketdagi punktir kartochka: ro'yxatni Excel ochadigan faylga yuklash */}
+        <a
+          href={`/api/payments.csv${csvQuery}`}
+          className="flex min-h-[126px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center text-[11px] leading-snug text-slate-500 transition hover:border-indigo-500 hover:text-indigo-600 lg:col-span-1 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+        >
+          {t("Excel'ga yuklash")}
+        </a>
       </div>
 
 

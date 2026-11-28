@@ -240,6 +240,16 @@ export default async function DashboardPage({
             }
           />
         </div>
+        {/* Maketdagi punktir kartochka: qolgan ko'rsatkichlar hisobotda */}
+        <Link
+          href="/reports"
+          className="flex min-h-[112px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-[11px] leading-snug text-slate-500 transition hover:border-indigo-500 hover:text-indigo-600 sm:col-span-2 lg:col-span-9 xl:col-span-9 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+        >
+          <span aria-hidden="true" className="text-base leading-none">
+            +
+          </span>
+          {t("Boshqa ko'rsatkichlar — Hisobotlar")}
+        </Link>
       </div>
 
       {/* Diagramma keng, pul hisobi tor: bir xil o'lchamli kartalar qatori

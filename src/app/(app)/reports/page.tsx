@@ -7,12 +7,33 @@ import {
   type SessionStatus,
   type Specialization,
 } from "@/lib/constants";
-import { getOverview, getSpecialistRows, monthRange } from "@/lib/stats";
+import {
+  getDailyCollected,
+  getDailySalary,
+  getOverview,
+  getSpecialistRows,
+  monthRange,
+  quarterRange,
+} from "@/lib/stats";
+import { MoneyChart } from "./money-chart";
 import { num } from "@/lib/format";
-import { Card, Empty, HeroStat, PageHeader, StatCard, btn, td, th } from "@/components/ui";
+import {
+  Avatar,
+  Card,
+  Empty,
+  HeroStat,
+  KeyRow,
+  PageHeader,
+  Segmented,
+  StatCard,
+  btn,
+  card,
+  td,
+  th,
+} from "@/components/ui";
 import { getT } from "@/lib/i18n/server";
 
-type Search = { m?: string };
+type Search = { m?: string; davr?: string };
 
 export default async function ReportsPage({
   searchParams,
@@ -29,11 +50,27 @@ export default async function ReportsPage({
   const base = new Date();
   base.setDate(1);
   base.setMonth(base.getMonth() + offset);
-  const { from, to } = monthRange(base);
+
+  // Davr: oy / 3 oy / yil. Diagramma ustunlari shunga qarab kun, hafta yoki
+  // oyga yig'iladi — aks holda yillik ko'rinishda 365 ta ingichka chiziq chiqadi
+  const davr = ["chorak", "yil"].includes(sp.davr ?? "") ? sp.davr! : "oy";
+  const { from, to } =
+    davr === "yil"
+      ? { from: new Date(base.getFullYear(), 0, 1), to: new Date(base.getFullYear() + 1, 0, 1) }
+      : davr === "chorak"
+        ? quarterRange(base)
+        : monthRange(base);
+  const chartStep = davr === "yil" ? "oy" : davr === "chorak" ? "hafta" : "kun";
+  const periodLabel =
+    davr === "yil"
+      ? String(from.getFullYear())
+      : davr === "chorak"
+        ? `${t.month(from.getMonth())} — ${t.monthYear(new Date(to.getFullYear(), to.getMonth() - 1, 1))}`
+        : t.monthYear(from);
 
   const branchId = user.role === "OWNER" ? null : user.branchId;
 
-  const [overview, specialistRows, branches, sessions] = await Promise.all([
+  const [overview, specialistRows, branches, sessions, dailyCash, dailyPay] = await Promise.all([
     getOverview({ branchId, from, to }),
     getSpecialistRows({ branchId, from, to }),
     user.role === "OWNER" ? prisma.branch.findMany({ where: NOT_SOLO, orderBy: { name: "asc" } }) : Promise.resolve([]),
@@ -49,6 +86,8 @@ export default async function ReportsPage({
         specialist: { select: { specialization: true } },
       },
     }),
+    getDailyCollected({ branchId, from, to }),
+    getDailySalary({ branchId, from, to }),
   ]);
 
   // Konsultatsiya puli abonement to'lovlaridan alohida yuritiladi (qabul hali
@@ -89,7 +128,20 @@ export default async function ReportsPage({
     .map(([k, v]) => ({ specialization: k, ...v }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  const qs = (o: number) => `/reports?m=${o}`;
+  const qs = (o: number) => {
+    const q = new URLSearchParams();
+    if (o !== 0) q.set("m", String(o));
+    if (davr !== "oy") q.set("davr", davr);
+    const x = q.toString();
+    return x ? `/reports?${x}` : "/reports";
+  };
+  const qsDavr = (d: string) => {
+    const q = new URLSearchParams();
+    if (offset !== 0) q.set("m", String(offset));
+    if (d !== "oy") q.set("davr", d);
+    const x = q.toString();
+    return x ? `/reports?${x}` : "/reports";
+  };
   const profit = overview.earned - overview.salary;
 
   return (
@@ -97,21 +149,31 @@ export default async function ReportsPage({
       <PageHeader
         title={t("Hisobotlar")}
         subtitle={
-          solo
-            ? t.monthYear(from)
-            : `${t.monthYear(from)} · ${user.branchName ?? t("barcha filiallar")}`
+          solo ? periodLabel : `${periodLabel} · ${user.branchName ?? t("barcha filiallar")}`
         }
         action={
-          <div className="flex gap-2">
-            <Link href={qs(offset - 1)} className={btn}>
-              ← {t("O'tgan oy")}
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented
+              items={[
+                { label: t("Oy"), href: qsDavr("oy"), active: davr === "oy" },
+                { label: t("3 oy"), href: qsDavr("chorak"), active: davr === "chorak" },
+                { label: t("Yil"), href: qsDavr("yil"), active: davr === "yil" },
+              ]}
+            />
+            <Link href="/settings#jadval" className={btn}>
+              {t("Google jadvalga")}
             </Link>
-            {offset !== 0 ? (
+            {davr === "oy" ? (
+              <Link href={qs(offset - 1)} className={btn}>
+                ← {t("O'tgan oy")}
+              </Link>
+            ) : null}
+            {davr === "oy" && offset !== 0 ? (
               <Link href={qs(0)} className={btn}>
                 {t("Bu oy")}
               </Link>
             ) : null}
-            {offset < 0 ? (
+            {davr === "oy" && offset < 0 ? (
               <Link href={qs(offset + 1)} className={btn}>
                 {t("Keyingi oy")} →
               </Link>
@@ -127,7 +189,7 @@ export default async function ReportsPage({
           <HeroStat
             label={t("Kassaga tushgan")}
             value={t.money(overview.collected)}
-            badge={t.monthYear(from)}
+            badge={periodLabel}
             hint={t("Xizmat qiymati {sum}", { sum: t.money(overview.earned) })}
           />
         </div>
@@ -167,43 +229,76 @@ export default async function ReportsPage({
         />
       </div>
 
+      {/* Tushum va ish haqi bitta ustunda: "ko'p tushdi, lekin ko'pi ish haqiga
+          ketdi" degan holat ikki diagrammani solishtirmasdan ko'rinadi */}
+      <section className={`${card} mt-4 p-5`}>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+            {t("Tushum va ish haqi")}
+          </h2>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {chartStep === "oy"
+              ? t("{period} · oylar bo'yicha", { period: periodLabel })
+              : chartStep === "hafta"
+                ? t("{period} · haftalar bo'yicha", { period: periodLabel })
+                : t("{period} · kunlar bo'yicha", { period: periodLabel })}
+          </span>
+        </div>
+        <MoneyChart
+          collected={dailyCash}
+          salary={dailyPay}
+          from={from}
+          to={to}
+          step={chartStep}
+        />
+      </section>
+
+      {/* Filiallar kesimi: kartochkada har filialning uch raqami yonma-yon
+          turadi — jadvalda ko'z ustunlar bo'ylab yurishi kerak edi */}
       {branchStats.length > 0 ? (
-        <Card title={t("Filiallar kesimi")} className="mt-5">
-          <div className="scroll-x">
-            <table className="w-full min-w-[820px]">
-              <thead className="border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className={th}>{t("Filial")}</th>
-                  <th className={th}>{t("Faol mijoz")}</th>
-                  <th className={th}>{t("O'tdi")}</th>
-                  <th className={th}>{t("Davomat")}</th>
-                  <th className={th}>{t("Tushum")}</th>
-                  <th className={th}>{t("Xizmat qiymati")}</th>
-                  <th className={th}>{t("Ish haqi")}</th>
-                  <th className={th}>{t("Markaz ulushi")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {branchStats.map((b) => (
-                  <tr key={b.id}>
-                    <td className={`${td} font-medium`}>{b.name}</td>
-                    <td className={`${td} tabular-nums`}>{b.clients}</td>
-                    <td className={`${td} tabular-nums`}>{b.done}</td>
-                    <td className={`${td} tabular-nums`}>
-                      {b.attendanceRate === null ? "—" : `${b.attendanceRate}%`}
-                    </td>
-                    <td className={`${td} tabular-nums`}>{t.money(b.collected)}</td>
-                    <td className={`${td} tabular-nums`}>{t.money(b.earned)}</td>
-                    <td className={`${td} tabular-nums`}>{t.money(b.salary)}</td>
-                    <td className={`${td} font-semibold tabular-nums`}>
-                      {t.money(b.earned - b.salary)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section className="mt-5">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+            {t("Filiallar kesimi")}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {branchStats.map((b) => (
+              <div key={b.id} className={`${card} p-4`} data-testid="report-branch">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                    {b.name}
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
+                    {t("{n} faol mijoz", { n: b.clients })}
+                  </span>
+                </div>
+                <p className="mt-2 text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                  {t.money(b.collected)}
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">{t("Tushum")}</p>
+
+                {/* Xizmat qiymatining qanchasi ish haqiga ketganini ko'rsatadi */}
+                <span className="mt-3 flex h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <span
+                    className="block bg-amber-400 dark:bg-amber-500"
+                    style={{ width: `${b.earned > 0 ? Math.round((b.salary / b.earned) * 100) : 0}%` }}
+                  />
+                  <span className="block flex-1 bg-indigo-600 dark:bg-indigo-500" />
+                </span>
+
+                <dl className="mt-3 flex flex-col gap-1.5">
+                  <KeyRow k={t("O'tdi")} v={String(b.done)} />
+                  <KeyRow
+                    k={t("Davomat")}
+                    v={b.attendanceRate === null ? "—" : `${b.attendanceRate}%`}
+                  />
+                  <KeyRow k={t("Xizmat qiymati")} v={t.money(b.earned)} />
+                  <KeyRow k={t("Ish haqi")} v={t.money(b.salary)} />
+                  <KeyRow k={t("Markaz ulushi")} v={t.money(b.earned - b.salary)} />
+                </dl>
+              </div>
+            ))}
           </div>
-        </Card>
+        </section>
       ) : null}
 
       {/* Mutaxassis va yo'nalish kesimi yakka ishlaganda bitta qatordan iborat bo'lardi */}
@@ -228,10 +323,17 @@ export default async function ReportsPage({
                   {specialistRows.map((r) => (
                     <tr key={r.id}>
                       <td className={td}>
-                        {r.fullName}
-                        <span className="block text-xs text-slate-400">
-                          {t(SPECIALIZATIONS[r.specialization as Specialization])}
-                          {!branchId ? ` · ${r.branchName}` : ""}
+                        <span className="flex items-center gap-2.5">
+                          <Avatar name={r.fullName} />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-slate-800 dark:text-slate-200">
+                              {r.fullName}
+                            </span>
+                            <span className="block truncate text-xs text-slate-400">
+                              {t(SPECIALIZATIONS[r.specialization as Specialization])}
+                              {!branchId ? ` · ${r.branchName}` : ""}
+                            </span>
+                          </span>
                         </span>
                       </td>
                       <td className={`${td} tabular-nums`}>{r.done}</td>
@@ -252,6 +354,9 @@ export default async function ReportsPage({
               </table>
             </div>
           )}
+          <p className="px-4 pb-4 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+            {t("Ish haqi bajarilgan seansdan hisoblanadi: seans narxi × foizi, \"O'tdi/Kelmadi\" belgilangan payt. Foiz seans bilan birga saqlanadi — keyin o'zgarsa, o'tgan hisob o'zgarmaydi.")}
+          </p>
         </Card>
 
         <Card title={t("Yo'nalishlar bo'yicha")}>
