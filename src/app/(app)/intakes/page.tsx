@@ -165,7 +165,7 @@ export default async function IntakesPage({
   return (
     <>
       <PageHeader
-        title={t("Konsultatsiya uchun qabullar")}
+        title={t("Qabullar")}
         subtitle={`${t.monthYear(from)} · ${t("{n} ta qabul", { n: intakes.length })}`}
         action={
           <div className="flex gap-2">
@@ -341,13 +341,11 @@ export default async function IntakesPage({
                             : "hover:border-slate-300 dark:hover:border-slate-600"
                         }`}
                       >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">
-                            {i.childName}
-                          </span>
-                          <span className="shrink-0 text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
-                            {dateShort(i.scheduledAt)} {timeUz(i.scheduledAt)}
-                          </span>
+                        <span className="truncate text-[13px] font-semibold text-slate-900 dark:text-white">
+                          {i.childName}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
+                          {dateShort(i.scheduledAt)} · {timeUz(i.scheduledAt)}
                         </span>
                         <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">
                           {i.specialist
@@ -357,9 +355,13 @@ export default async function IntakesPage({
                             : t("Hali aniq emas")}
                         </span>
                         <span className="mt-0.5 flex items-center justify-between gap-2">
-                          <span className="truncate rounded-full bg-slate-100 px-2 py-px text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                            {i.source?.trim() || t("manba yozilmagan")}
-                          </span>
+                          {i.source?.trim() ? (
+                            <span className="min-w-0 truncate rounded-full bg-slate-100 px-2 py-px text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                              {i.source.trim()}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
                           <span
                             className={`shrink-0 text-[11px] font-semibold tabular-nums ${
                               i.paidAt

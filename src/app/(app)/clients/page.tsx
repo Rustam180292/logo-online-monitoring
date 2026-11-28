@@ -403,7 +403,7 @@ export default async function ClientsPage({
         </details>
       ) : null}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_320px]">
       <Card className="min-w-0">
         {rows.length === 0 && !hasFilter ? (
           <Empty>{t("Hali mijoz qo'shilmagan.")}</Empty>
@@ -615,7 +615,9 @@ export default async function ClientsPage({
       </Card>
 
       {/* O'ngdagi tez ko'rinish: kartani ochmasdan asosiy raqamlarni ko'rish */}
-      <aside className="flex min-w-0 flex-col gap-4">
+      {/* Tor ekranda panel jadval ustida: pastda qolsa 30 ta mijozni
+          aylantirib o'tishga to'g'ri kelardi */}
+      <aside className="order-first flex min-w-0 flex-col gap-4 2xl:order-none">
         {selected ? (
           <section className={`${card} p-5`} data-testid="client-preview">
             <div className="flex items-center gap-3">

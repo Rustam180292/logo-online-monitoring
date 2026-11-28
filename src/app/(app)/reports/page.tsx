@@ -303,20 +303,19 @@ export default async function ReportsPage({
 
       {/* Mutaxassis va yo'nalish kesimi yakka ishlaganda bitta qatordan iborat bo'lardi */}
       {solo ? null : (
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
+      <div className="mt-5 flex flex-col gap-5">
         <Card title={t("Mutaxassislar bo'yicha")}>
           {specialistRows.length === 0 ? (
             <Empty>{t("Ma'lumot yo'q.")}</Empty>
           ) : (
             <div className="scroll-x">
-              <table className="w-full min-w-[520px]">
+              <table className="w-full min-w-[420px]">
                 <thead className="border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className={th}>{t("Mutaxassis")}</th>
                     <th className={th}>{t("O'tdi")}</th>
                     <th className={th}>{t("Xizmat")}</th>
                     <th className={th}>{t("Ish haqi")}</th>
-                    <th className={th}>{t("Ulush")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -337,11 +336,14 @@ export default async function ReportsPage({
                         </span>
                       </td>
                       <td className={`${td} tabular-nums`}>{r.done}</td>
-                      <td className={`${td} tabular-nums`}>{t.money(r.revenue)}</td>
-                      <td className={`${td} font-semibold tabular-nums`}>{t.money(r.salary)}</td>
-                      {/* Chiziq: kim ko'p ishlaganini raqamlarni solishtirmasdan ko'rsatadi */}
-                      <td className={`${td} w-28`}>
-                        <span className="block h-[7px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <td className={`${td} whitespace-nowrap tabular-nums`}>{t.money(r.revenue)}</td>
+                      {/* Raqam ostidagi chiziq: kim ko'p ishlaganini raqamlarni
+                          solishtirmasdan ko'rsatadi */}
+                      <td className={`${td} w-32`}>
+                        <span className="block whitespace-nowrap font-semibold tabular-nums text-slate-900 dark:text-white">
+                          {t.money(r.salary)}
+                        </span>
+                        <span className="mt-1 block h-[5px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                           <span
                             className="block h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
                             style={{ width: `${Math.round((r.salary / maxSalary) * 100)}%` }}

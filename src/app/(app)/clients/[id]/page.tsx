@@ -508,7 +508,7 @@ export default async function ClientPage({
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
                 {t("Hisob")}
               </h2>
-              <dl className="mt-3.5 grid grid-cols-3 gap-3">
+              <dl className="mt-3.5 flex flex-col gap-2.5">
                 {[
                   { k: t("To'langan"), v: t.money(totalPaid), tone: "text-slate-900 dark:text-white" },
                   {
@@ -527,11 +527,9 @@ export default async function ClientPage({
                           : "text-slate-400",
                   },
                 ].map((x) => (
-                  <div key={x.k} className="min-w-0">
-                    <dt className="text-[11px] text-slate-500 dark:text-slate-400">{x.k}</dt>
-                    <dd className={`mt-0.5 truncate text-sm font-semibold tabular-nums ${x.tone}`}>
-                      {x.v}
-                    </dd>
+                  <div key={x.k} className="flex items-baseline justify-between gap-3">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">{x.k}</dt>
+                    <dd className={`text-sm font-semibold tabular-nums ${x.tone}`}>{x.v}</dd>
                   </div>
                 ))}
               </dl>

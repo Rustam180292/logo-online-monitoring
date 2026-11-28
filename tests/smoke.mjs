@@ -357,9 +357,16 @@ for (const [path, marker] of [
       paid,
       `${paymentsBefore} -> ${await count("SELECT COUNT(*) AS n FROM Payment")}`,
     );
+    // Baza yozuvi sahifa yangilanishidan oldin ko'rinadi — xabarni kutamiz
     check(
       "To'lov qo'shilgach yashil xabar chiqadi",
-      (await page.getByRole("alert").filter({ hasText: "To'lov qabul qilindi" }).count()) > 0,
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "To'lov qabul qilindi" })
+        .first()
+        .waitFor({ state: "visible", timeout: 10000 })
+        .then(() => true)
+        .catch(() => false),
     );
     check(
       "To'lov qarzni avtomatik yopadi",
@@ -1664,8 +1671,8 @@ if (await payRow.count()) {
   await page.waitForLoadState("networkidle");
   const seeded = await count("SELECT COUNT(*) AS n FROM Intake");
   check(
-    "Qabullar sahifasi \"Konsultatsiya uchun qabullar\" nomi bilan ochiladi",
-    (await page.locator("h1").first().innerText()) === "Konsultatsiya uchun qabullar",
+    "Qabullar sahifasi \"Qabullar\" nomi bilan ochiladi",
+    (await page.locator("h1").first().innerText()) === "Qabullar",
     page.url(),
   );
   check("Seed'da qabullar bor", seeded > 0, `${seeded} ta`);

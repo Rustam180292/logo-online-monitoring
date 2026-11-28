@@ -254,7 +254,7 @@ export default async function SpecialistsPage({
         </Card>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-3">
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:col-span-2">
+          <div className="grid min-w-0 content-start gap-3 sm:grid-cols-2 lg:col-span-2">
             {rows.map((r) => {
               const on = selected?.id === r.id;
               return (
@@ -283,22 +283,23 @@ export default async function SpecialistsPage({
                     </span>
                   </Link>
 
-                  <dl className="mt-3.5 grid grid-cols-3 gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
-                    <div>
-                      <dt className="text-[10px] text-slate-400 dark:text-slate-500">{t("Mijoz")}</dt>
+                  <dl className="mt-3.5 flex flex-col gap-1.5 border-t border-slate-200 pt-3 dark:border-slate-800">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {t("Mijoz")} · {t("O'tdi")}
+                      </dt>
+                      <dd className="text-xs tabular-nums text-slate-700 dark:text-slate-300">
+                        {r.clients} ·{" "}
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          {r.done}
+                        </span>
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {t("Ish haqi")}
+                      </dt>
                       <dd className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                        {r.clients}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] text-slate-400 dark:text-slate-500">{t("O'tdi")}</dt>
-                      <dd className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                        {r.done}
-                      </dd>
-                    </div>
-                    <div className="min-w-0">
-                      <dt className="text-[10px] text-slate-400 dark:text-slate-500">{t("Ish haqi")}</dt>
-                      <dd className="truncate text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                         {t.money(r.salary)}
                       </dd>
                     </div>
