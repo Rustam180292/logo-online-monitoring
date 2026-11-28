@@ -191,11 +191,14 @@ export function isWorkDay(date: Date, workDays: number[]): boolean {
  * Tushlikka to'g'ri keladigan (unga qisman kirib qoladigan ham) vaqt
  * taklif qilinmaydi: 12:30 dagi soatlik seans 13:00 dagi tushlikni yeydi.
  */
-export function daySlots(date: Date, s: WorkHours): Date[] {
+export function daySlots(date: Date, s: WorkHours, lengthMin?: number): Date[] {
   const out: Date[] = [];
   if (!isWorkDay(date, s.workDays)) return out;
 
   const step = Math.max(s.slotMinutes, 5);
+  // Seans uzunligi oraliqdan farq qilishi mumkin (45 daqiqalik seans 15
+  // daqiqalik oraliqda): tushlikka kirib ketadimi — uzunligi bo'yicha tekshiriladi
+  const length = Math.max(lengthMin ?? step, 5);
   const start = new Date(date);
   start.setHours(s.workStartHour, 0, 0, 0);
   const end = new Date(date);
@@ -209,7 +212,7 @@ export function daySlots(date: Date, s: WorkHours): Date[] {
   for (let t = new Date(start); t < end; t = new Date(t.getTime() + step * 60_000)) {
     if (lunch) {
       const m = t.getHours() * 60 + t.getMinutes();
-      if (m < lunch.to && m + step > lunch.from) continue;
+      if (m < lunch.to && m + length > lunch.from) continue;
     }
     out.push(new Date(t));
   }

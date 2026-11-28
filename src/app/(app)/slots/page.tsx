@@ -7,10 +7,10 @@ import { daySlots, getWorkHours, isWorkDay, minutesToTime } from "@/lib/settings
 import { addDays, startOfDay } from "@/lib/stats";
 import { dateShort, timeUz } from "@/lib/format";
 import { getT } from "@/lib/i18n/server";
-import { Card, Empty, PageHeader, btn, btnPrimary, card, input, label, th } from "@/components/ui";
+import { Avatar, BarRow, Empty, PageHeader, Segmented, btn, btnPrimary, card, input, label } from "@/components/ui";
 import { createSession } from "@/app/(app)/schedule/actions";
 
-type Search = { w?: string; sp?: string; d?: string; b?: string };
+type Search = { w?: string; sp?: string; d?: string; b?: string; daq?: string; t?: string };
 
 /** Haftaning dushanbasi */
 function mondayOf(date: Date): Date {
@@ -30,6 +30,11 @@ export default async function SlotsPage({
   // Yakka logoped o'z ish vaqti bo'yicha ishlaydi, markaz — umumiy ish vaqti bo'yicha
   const settings = await getWorkHours(isSolo(user) ? user.branchId : null);
   const t = await getT();
+
+  // Seans davomiyligi: markaz oralig'i standart, lekin qabulxona 30 yoki 60
+  // daqiqalik joy ham qidiradi — bo'sh vaqtlar shunga qarab qaytadan hisoblanadi
+  const durations = [30, 45, 60];
+  const duration = durations.includes(Number(sp.daq)) ? Number(sp.daq) : settings.slotMinutes;
 
   const weekOffset = Number.parseInt(sp.w ?? "0", 10) || 0;
   const from = addDays(mondayOf(new Date()), weekOffset * 7);
@@ -76,9 +81,9 @@ export default async function SlotsPage({
 
   const freeSlots = (specialistId: string, day: Date): Date[] => {
     const taken = busy.get(specialistId) ?? [];
-    const length = settings.slotMinutes * 60_000;
+    const length = duration * 60_000;
     const now = Date.now();
-    return daySlots(day, settings).filter((slot) => {
+    return daySlots(day, settings, duration).filter((slot) => {
       const start = slot.getTime();
       if (start < now) return false; // o'tgan vaqtni taklif qilishning ma'nisi yo'q
       return !taken.some((t) => t.start < start + length && t.end > start);
@@ -91,6 +96,8 @@ export default async function SlotsPage({
     if (sp.b) p.set("b", sp.b);
     if (sp.sp) p.set("sp", sp.sp);
     if (sp.d) p.set("d", sp.d);
+    if (sp.daq) p.set("daq", sp.daq);
+    if (sp.t) p.set("t", sp.t);
     for (const [k, v] of Object.entries(patch)) {
       if (v === null) p.delete(k);
       else p.set(k, v);
@@ -122,154 +129,238 @@ export default async function SlotsPage({
         })
       : [];
 
+  // Tanlangan kun: manzilda bo'lmasa — bugungi (hafta ichida bo'lsa)
+  const todayIso = isoDay(new Date());
+  const pickedDayIso = sp.d && days.some((d) => isoDay(d) === sp.d)
+    ? sp.d
+    : days.some((d) => isoDay(d) === todayIso)
+      ? todayIso
+      : isoDay(days[0]);
+  const pickedDay = days.find((d) => isoDay(d) === pickedDayIso) ?? days[0];
+
+  // Shu kundagi har bir mutaxassisning bo'sh vaqtlari
+  const rows = specialists.map((x) => ({
+    id: x.id,
+    name: x.user.fullName,
+    role: t(SPECIALIZATIONS[x.specialization as Specialization]),
+    branchName: x.branch.name,
+    branchId: x.branchId,
+    slots: freeSlots(x.id, pickedDay),
+  }));
+  const freeToday = rows.reduce((n, r) => n + r.slots.length, 0);
+  const maxFree = Math.max(1, ...rows.map((r) => r.slots.length));
+
+  // Tanlangan vaqt: mutaxassis + soat
+  const pickedTime = sp.t ?? null;
+  const pickedRow = rows.find((r) => r.id === sp.sp) ?? null;
+  const pickedSlot =
+    pickedRow && pickedTime
+      ? pickedRow.slots.find((slot) => timeUz(slot) === pickedTime) ?? null
+      : null;
+
   return (
     <>
       <PageHeader
         title={t("Bo'sh vaqtlar")}
-        subtitle={`${dateShort(from)} — ${dateShort(addDays(from, 6))} · ${t("ish vaqti")} ${
-          settings.workStartHour
-        }:00–${settings.workEndHour}:00${
-          settings.lunchStartMin != null && settings.lunchEndMin != null
-            ? ` · ${t("tushlik")} ${minutesToTime(settings.lunchStartMin)}–${minutesToTime(settings.lunchEndMin)}`
-            : ""
-        }`}
+        subtitle={`${t.weekday(pickedDay)}, ${dateShort(pickedDay)} · ${t("{n} ta bo'sh vaqt ({min} daqiqa)", { n: freeToday, min: duration })}`}
         action={
-          <div className="flex gap-2">
-            <Link href={qs({ w: String(weekOffset - 1), sp: null, d: null })} className={btn}>
-              ← {t("O'tgan hafta")}
-            </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented
+              items={durations.map((d) => ({
+                href: qs({ daq: String(d), t: null }),
+                label: t("{n} daq", { n: d }),
+                active: d === duration,
+              }))}
+            />
+            <div className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
+              <Link
+                href={qs({ w: String(weekOffset - 1), sp: null, d: null, t: null })}
+                aria-label={t("O'tgan hafta")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ‹
+              </Link>
+              <span className="whitespace-nowrap px-1.5 text-[13px] font-medium text-slate-800 dark:text-slate-200">
+                {weekOffset === 0 ? t("Shu hafta") : `${dateShort(from)} — ${dateShort(addDays(from, 6))}`}
+              </span>
+              <Link
+                href={qs({ w: String(weekOffset + 1), sp: null, d: null, t: null })}
+                aria-label={t("Keyingi hafta")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ›
+              </Link>
+            </div>
             {weekOffset !== 0 ? (
-              <Link href={qs({ w: "0", sp: null, d: null })} className={btn}>
-                {t("Shu hafta")}
+              <Link href={qs({ w: "0", sp: null, d: null, t: null })} className={btn}>
+                {t("Shu haftaga qaytish")}
               </Link>
             ) : null}
-            <Link href={qs({ w: String(weekOffset + 1), sp: null, d: null })} className={btn}>
-              {t("Keyingi hafta")} →
-            </Link>
           </div>
         }
       />
 
+      {/* Kunlar: har birida o'sha kundagi bo'sh vaqtlar soni — qabulxona
+          "qaysi kun bo'shroq" degan savolga shu qatordan javob topadi */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {days.map((d) => {
+          const on = isoDay(d) === pickedDayIso;
+          const count = specialists.reduce((n, x) => n + freeSlots(x.id, d).length, 0);
+          return (
+            <Link
+              key={isoDay(d)}
+              href={qs({ d: isoDay(d), t: null })}
+              className={`flex flex-col gap-0.5 rounded-xl border px-3.5 py-2 transition ${
+                on
+                  ? "border-indigo-600 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950"
+                  : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+              }`}
+            >
+              <span
+                className={`text-xs font-semibold ${
+                  on ? "text-indigo-700 dark:text-indigo-300" : "text-slate-800 dark:text-slate-200"
+                }`}
+              >
+                {t.weekdayShort(d)} {d.getDate()}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                {t("{n} ta bo'sh", { n: count })}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
       {branches.length > 0 ? (
-        <form method="get" className={`${card} mb-5 flex flex-wrap items-end gap-3 p-4`}>
+        <form method="get" className="mb-4 flex flex-wrap items-center gap-2">
           {weekOffset !== 0 ? <input type="hidden" name="w" value={weekOffset} /> : null}
-          <div className="min-w-[200px]">
-            <label className={label} htmlFor="b">
-              {t("Filial")}
-            </label>
-            <select id="b" name="b" defaultValue={sp.b ?? ""} className={input}>
-              <option value="">{t("Barcha filiallar")}</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className={btnPrimary}>
+          {sp.daq ? <input type="hidden" name="daq" value={sp.daq} /> : null}
+          <input type="hidden" name="d" value={pickedDayIso} />
+          <select
+            name="b"
+            defaultValue={sp.b ?? ""}
+            aria-label={t("Filial")}
+            className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <option value="">{t("Barcha filiallar")}</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          >
             {t("Ko'rsatish")}
           </button>
         </form>
       ) : null}
 
-      <Card>
-        {specialists.length === 0 ? (
-          <Empty>{t("Mutaxassis yo'q. Avval Xodimlar bo'limidan qo'shing.")}</Empty>
-        ) : (
-          <div className="scroll-x">
-            <table className="w-full min-w-[880px]">
-              <thead className="border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className={th}>{t("Mutaxassis")}</th>
-                  {days.map((d) => (
-                    <th
-                      key={d.toISOString()}
-                      className={`px-2 py-3 text-center text-[11px] font-medium ${
-                        isWorkDay(d, settings.workDays)
-                          ? "text-slate-500 dark:text-slate-400"
-                          : "text-slate-300 dark:text-slate-600"
-                      }`}
-                    >
-                      {t.weekdayShort(d)}
-                      <span className="block font-normal normal-case">{dateShort(d)}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {specialists.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2.5">
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                        {s.user.fullName}
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <section className={`${card} min-w-0 p-5 lg:col-span-2`}>
+          {specialists.length === 0 ? (
+            <Empty>{t("Mutaxassis yo'q. Avval Xodimlar bo'limidan qo'shing.")}</Empty>
+          ) : (
+            <>
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {t("Mutaxassislarning bo'sh vaqti")}
+                </h2>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("vaqtni bosing — o'ngdagi forma to'ladi")}
+                </span>
+              </div>
+              <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+                {rows.map((r) => (
+                  <div key={r.id} className="flex flex-wrap items-start gap-3 py-3">
+                    <span className="flex w-[190px] shrink-0 items-center gap-2.5">
+                      <Avatar name={r.name} tone="muted" size="sm" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-medium text-slate-800 dark:text-slate-200">
+                          {r.name}
+                        </span>
+                        <span className="block truncate text-[11px] text-slate-400 dark:text-slate-500">
+                          {r.role}
+                          {branchId ? "" : ` · ${r.branchName}`}
+                        </span>
                       </span>
-                      <span className="block text-xs text-slate-400">
-                        {t(SPECIALIZATIONS[s.specialization as Specialization])}
-                        {branchId ? "" : ` · ${s.branch.name}`}
-                      </span>
-                    </td>
-                    {days.map((d) => {
-                      const free = freeSlots(s.id, d).length;
-                      const isPicked = picked?.specialist?.id === s.id && sp.d === isoDay(d);
-                      return (
-                        <td key={d.toISOString()} className="px-2 py-2.5 text-center">
-                          {free === 0 ? (
-                            <span className="text-sm text-slate-300 dark:text-slate-600">—</span>
-                          ) : (
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                      {r.slots.length === 0 ? (
+                        <span className="text-xs text-slate-400 dark:text-slate-500">
+                          {t("bo'sh vaqt yo'q")}
+                        </span>
+                      ) : (
+                        r.slots.map((slot) => {
+                          const on = sp.sp === r.id && pickedTime === timeUz(slot);
+                          return (
                             <Link
-                              href={qs({ sp: s.id, d: isoDay(d) })}
-                              className={`inline-flex min-w-[36px] items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold transition ${
-                                isPicked
-                                  ? "border-indigo-600 bg-indigo-600 text-white"
-                                  : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300"
+                              key={slot.toISOString()}
+                              href={qs({ sp: r.id, d: pickedDayIso, t: timeUz(slot) })}
+                              data-vaqt={localInput(slot)}
+                              className={`rounded-lg border px-2.5 py-1 text-xs tabular-nums transition ${
+                                on
+                                  ? "border-indigo-600 bg-indigo-600 font-semibold text-white"
+                                  : "border-indigo-200 bg-indigo-50 font-medium text-indigo-700 hover:border-indigo-400 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300"
                               }`}
                             >
-                              {free}
+                              {timeUz(slot)}
                             </Link>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                          );
+                        })
+                      )}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          {t("Raqam — o'sha kundagi bo'sh vaqtlar soni. Raqamni bosib vaqtni tanlang. O'tib ketgan vaqtlar sanalmaydi.")}
-        </p>
-      </Card>
+              </div>
+              <p className="mt-3 border-t border-slate-200 pt-3 text-[11px] leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                {t("Ish vaqti {from}:00–{to}:00", { from: settings.workStartHour, to: settings.workEndHour })}
+                {settings.lunchStartMin != null && settings.lunchEndMin != null
+                  ? ` · ${t("tushlik")} ${minutesToTime(settings.lunchStartMin)}–${minutesToTime(settings.lunchEndMin)} ${t("taklif qilinmaydi")}`
+                  : ""}
+                {". "}
+                {t("O'tib ketgan vaqtlar sanalmaydi.")}
+              </p>
+            </>
+          )}
+        </section>
 
-      {picked?.specialist ? (
-        <Card
-          title={`${picked.specialist.user.fullName} · ${dateShort(picked.day)}`}
-          subtitle={t("{n} ta bo'sh vaqt", { n: pickedSlots.length })}
-          className="mt-5"
-          action={
-            <Link href={qs({ sp: null, d: null })} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-              {t("Yopish")}
-            </Link>
-          }
-        >
-          {pickedSlots.length === 0 ? (
-            <Empty>{t("Bu kunda bo'sh vaqt qolmagan.")}</Empty>
-          ) : clients.length === 0 ? (
-            <Empty>{t("Bu filialda faol mijoz yo'q.")}</Empty>
-          ) : (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pickedSlots.map((slot) => (
-                <form
-                  key={slot.toISOString()}
-                  action={createSession}
-                  className="rounded-2xl border border-slate-200 p-3.5 dark:border-slate-800"
-                >
-                  <input type="hidden" name="specialistId" value={picked.specialist!.id} />
-                  <input type="hidden" name="startsAt" value={localInput(slot)} />
-                  <p className="mb-2.5 text-lg font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
-                    {timeUz(slot)}
+        <aside className="flex min-w-0 flex-col gap-4">
+          <section className={`${card} p-5`} data-testid="slot-booking">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              {t("Shu vaqtga yozish")}
+            </h2>
+            {!pickedRow || !pickedSlot ? (
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                {t("Chapdan bo'sh vaqtni tanlang.")}
+              </p>
+            ) : clients.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                {t("Bu filialda faol mijoz yo'q.")}
+              </p>
+            ) : (
+              <form action={createSession} className="mt-3.5 flex flex-col gap-3">
+                <input type="hidden" name="specialistId" value={pickedRow.id} />
+                <input type="hidden" name="startsAt" value={localInput(pickedSlot)} />
+                <input type="hidden" name="durationMin" value={duration} />
+                <div className="rounded-xl bg-indigo-50 p-3.5 dark:bg-indigo-950/60">
+                  <p className="text-xl font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">
+                    {timeUz(pickedSlot)}
                   </p>
-                  <select name="clientId" className={input} required defaultValue="">
+                  <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                    {t.weekday(pickedDay)}, {dateShort(pickedDay)} · {pickedRow.name}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {t("{n} daqiqa", { n: duration })} · {pickedRow.role}
+                  </p>
+                </div>
+                <div>
+                  <label className={label} htmlFor="slotClient">
+                    {t("Mijoz")} *
+                  </label>
+                  <select id="slotClient" name="clientId" className={input} required defaultValue="">
                     <option value="" disabled>
                       {t("Mijozni tanlang")}
                     </option>
@@ -279,13 +370,13 @@ export default async function SlotsPage({
                       </option>
                     ))}
                   </select>
-                  {sessionTypes.length > 0 ? (
-                    <select
-                      name="sessionTypeId"
-                      defaultValue=""
-                      aria-label={t("Xizmat")}
-                      className={`${input} mt-2`}
-                    >
+                </div>
+                {sessionTypes.length > 0 ? (
+                  <div>
+                    <label className={label} htmlFor="slotService">
+                      {t("Xizmat")}
+                    </label>
+                    <select id="slotService" name="sessionTypeId" defaultValue="" className={input}>
                       <option value="">{t("— mijozning xizmati —")}</option>
                       {sessionTypes.map((st) => (
                         <option key={st.id} value={st.id}>
@@ -293,28 +384,40 @@ export default async function SlotsPage({
                         </option>
                       ))}
                     </select>
-                  ) : null}
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      name="durationMin"
-                      type="number"
-                      min={15}
-                      max={240}
-                      step={5}
-                      defaultValue={45}
-                      aria-label={t("Davomiyligi (daqiqa)")}
-                      className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums dark:border-slate-700 dark:bg-slate-900"
-                    />
-                    <button type="submit" className={`${btnPrimary} flex-1`}>
-                      {t("Yozish")}
-                    </button>
                   </div>
-                </form>
+                ) : null}
+                <button type="submit" className={btnPrimary}>
+                  {t("Yozish")}
+                </button>
+                <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                  {t("Seans faqat xizmat bilan yoziladi — narx va mutaxassis ulushi shundan olinadi va seans bilan birga saqlanadi.")}
+                </p>
+              </form>
+            )}
+          </section>
+
+          <section className={`${card} p-5`}>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              {t("{day} bandligi", { day: `${t.weekdayShort(pickedDay)} ${pickedDay.getDate()}` })}
+            </h2>
+            <div className="mt-3.5 flex flex-col gap-2.5">
+              {rows.map((r) => (
+                <BarRow
+                  key={r.id}
+                  label={r.name.split(" ")[0]}
+                  value={t("{n} ta bo'sh", { n: r.slots.length })}
+                  part={r.slots.length / maxFree}
+                  tone={r.slots.length === 0 ? "warn" : "accent"}
+                  labelWidth="w-20"
+                />
               ))}
             </div>
-          )}
-        </Card>
-      ) : null}
+            <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500">
+              {t("Chiziq uzun bo'lsa — mutaxassisning kuni bo'sh.")}
+            </p>
+          </section>
+        </aside>
+      </div>
     </>
   );
 }

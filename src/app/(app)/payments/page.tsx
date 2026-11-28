@@ -7,10 +7,11 @@ import {
   PAYMENT_METHOD_KEYS,
   type PaymentMethod,
 } from "@/lib/constants";
-import { monthRange } from "@/lib/stats";
+import { dayRange, monthRange } from "@/lib/stats";
 import { dateTimeUz, toDateInput } from "@/lib/format";
 import {
   Badge,
+  BarRow,
   Card,
   Empty,
   HeroStat,
@@ -27,7 +28,7 @@ import {
 import { addPayment, updatePayment } from "@/app/(app)/clients/actions";
 import { getT } from "@/lib/i18n/server";
 
-type Search = { m?: string; b?: string; pm?: string; q?: string };
+type Search = { m?: string; b?: string; pm?: string; q?: string; tab?: string };
 
 export default async function PaymentsPage({
   searchParams,
@@ -50,8 +51,11 @@ export default async function PaymentsPage({
     : null;
   // Bitta bolaning to'lovlarini topish eng ko'p so'raladigan narsa
   const nameFilter = (sp.q ?? "").trim();
+  // Ikki ro'yxat bir vaqtda ekranni egallamasin: bo'lim bo'lib almashadi
+  const tab = sp.tab === "qabul" ? "qabul" : "tolov";
 
-  const [payments, branches, clients, intakes] = await Promise.all([
+  const today = dayRange();
+  const [payments, branches, clients, intakes, todayPays, todayIntakes] = await Promise.all([
     prisma.payment.findMany({
       where: {
         paidAt: { gte: from, lt: to },
@@ -89,6 +93,18 @@ export default async function PaymentsPage({
         specialist: { select: { user: { select: { fullName: true } } } },
       },
     }),
+    // "Bugungi kassa": kun davomida qaysi usulda qancha tushgani — qabulxona
+    // kun oxirida pulni shu raqam bilan solishtiradi
+    prisma.payment.groupBy({
+      by: ["method"],
+      where: { paidAt: { gte: today.from, lt: today.to }, ...branchWhere(branchId) },
+      _sum: { amount: true },
+    }),
+    prisma.intake.groupBy({
+      by: ["method"],
+      where: { paidAt: { gte: today.from, lt: today.to }, ...branchWhere(branchId) },
+      _sum: { price: true },
+    }),
   ]);
 
   const intakeTotal = intakes.reduce((s, i) => s + i.price, 0);
@@ -104,6 +120,14 @@ export default async function PaymentsPage({
       payments.filter((p) => p.method === m).length +
       intakes.filter((i) => i.method === m).length,
   }));
+
+  const todayByMethod = PAYMENT_METHOD_KEYS.map((m) => ({
+    method: m,
+    sum:
+      (todayPays.find((x) => x.method === m)?._sum.amount ?? 0) +
+      (todayIntakes.find((x) => x.method === m)?._sum.price ?? 0),
+  }));
+  const todayTotal = todayByMethod.reduce((n, x) => n + x.sum, 0);
 
   // Egasi barcha filiallarni ko'radi — ro'yxatni filial bo'yicha guruhlaymiz
   const clientGroups = new Map<string, typeof clients>();
@@ -141,7 +165,18 @@ export default async function PaymentsPage({
     p.set("m", String(o));
     if (sp.b) p.set("b", sp.b);
     if (sp.pm) p.set("pm", sp.pm);
+    if (tab === "qabul") p.set("tab", "qabul");
     return `/payments?${p.toString()}`;
+  };
+
+  /** Bo'limni almashtirish: davr va filial saqlanadi, qidiruv tozalanadi */
+  const qsTab = (id: string) => {
+    const p = new URLSearchParams();
+    if (offset !== 0) p.set("m", String(offset));
+    if (sp.b) p.set("b", sp.b);
+    if (id === "qabul") p.set("tab", "qabul");
+    const q = p.toString();
+    return q ? `/payments?${q}` : "/payments";
   };
 
   return (
@@ -215,140 +250,102 @@ export default async function PaymentsPage({
         ))}
       </div>
 
-      <form method="get" className={`${card} my-5 flex flex-wrap items-end gap-3 p-4`}>
-        <input type="hidden" name="m" value={offset} />
-        {branches.length > 0 ? (
-          <div className="min-w-[170px]">
-            <label className={label} htmlFor="b">
-              {t("Filial")}
-            </label>
-            <select id="b" name="b" defaultValue={sp.b ?? ""} className={input}>
-              <option value="">{t("Barchasi")}</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-        <div className="min-w-[150px]">
-          <label className={label} htmlFor="pm">
-            {t("To'lov usuli")}
-          </label>
-          <select id="pm" name="pm" defaultValue={sp.pm ?? ""} className={input}>
-            <option value="">{t("Barchasi")}</option>
-            {PAYMENT_METHOD_KEYS.map((m) => (
-              <option key={m} value={m}>
-                {t(PAYMENT_METHODS[m])}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="min-w-[200px]">
-          <label className={label} htmlFor="q">
-            {t("Bola ismi")}
-          </label>
-          <input
-            id="q"
-            name="q"
-            defaultValue={sp.q ?? ""}
-            placeholder={t("ism bo'yicha qidirish")}
-            className={input}
-          />
-        </div>
-        <button type="submit" className={btnPrimary}>
-          {t("Filtrlash")}
-        </button>
-        {sp.q || sp.pm || sp.b ? (
-          <Link href={`/payments?m=${offset}`} className={btn}>
-            {t("Tozalash")}
-          </Link>
-        ) : null}
-      </form>
 
-      <details data-autoclose className={`${card} mb-5 p-4`} open={payments.length === 0}>
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-200">
-          + {t("To'lov qabul qilish")}
-        </summary>
-        {clients.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            {t("Avval mijoz qo'shing.")}
-          </p>
-        ) : (
-          <>
-            <form action={addPayment} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="lg:col-span-2">
-                <label className={label} htmlFor="clientId">
-                  {t("Mijoz")} *
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
+        <section className={`${card} min-w-0 lg:col-span-2`}>
+          {/* Mijoz to'lovlari va konsultatsiya puli — ikki alohida ro'yxat
+              (bazada ham alohida), lekin bitta kartada bo'lim bo'lib almashadi */}
+          <div className="flex flex-wrap gap-1 border-b border-slate-200 px-4 pt-2 dark:border-slate-800">
+            {[
+              { id: "tolov", label: t("Mijoz to'lovlari"), count: payments.length },
+              { id: "qabul", label: t("Konsultatsiyalar"), count: intakes.length },
+            ].map((x) => {
+              const on = tab === x.id;
+              return (
+                <Link
+                  key={x.id}
+                  href={qsTab(x.id)}
+                  className={`inline-flex items-center gap-2 px-3.5 pb-2.5 pt-1.5 text-[13px] transition ${
+                    on
+                      ? "font-semibold text-indigo-700 shadow-[inset_0_-2px_0] shadow-indigo-600 dark:text-indigo-300 dark:shadow-indigo-400"
+                      : "font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  }`}
+                >
+                  {x.label}
+                  <span
+                    className={`rounded-full px-1.5 py-px text-[11px] tabular-nums ${
+                      on
+                        ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                        : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                    }`}
+                  >
+                    {x.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <form
+            method="get"
+            className="flex flex-wrap items-end gap-2.5 border-b border-slate-200 px-5 py-3.5 dark:border-slate-800"
+          >
+            <input type="hidden" name="m" value={offset} />
+            {tab === "qabul" ? <input type="hidden" name="tab" value="qabul" /> : null}
+            {branches.length > 0 ? (
+              <div className="min-w-[150px]">
+                <label className={label} htmlFor="b">
+                  {t("Filial")}
                 </label>
-                {/* Bo'sh tanlov bilan boshlanadi: oldindan birinchi mijoz tanlanib tursa,
-                    e'tibor berilmasa pul o'shanga yozilib ketardi */}
-                <select id="clientId" name="clientId" className={input} required defaultValue="">
-                  <option value="" disabled>
-                    {t("Mijozni tanlang")}
-                  </option>
-                  {clientOptions()}
-                </select>
-              </div>
-              <div>
-                <label className={label} htmlFor="amount">
-                  {t("Summa ({currency})", { currency: t.currency })} *
-                </label>
-                <input
-                  id="amount"
-                  name="amount"
-                  inputMode="numeric"
-                  placeholder="500000"
-                  className={input}
-                  required
-                />
-              </div>
-              <div>
-                <label className={label} htmlFor="method">
-                  {t("Usul")}
-                </label>
-                <select id="method" name="method" className={input}>
-                  {PAYMENT_METHOD_KEYS.map((m) => (
-                    <option key={m} value={m}>
-                      {t(PAYMENT_METHODS[m])}
+                <select id="b" name="b" defaultValue={sp.b ?? ""} className={input}>
+                  <option value="">{t("Barchasi")}</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className={label} htmlFor="paidAt">
-                  {t("Sana")}
-                </label>
-                <input
-                  id="paidAt"
-                  name="paidAt"
-                  type="date"
-                  defaultValue={toDateInput(new Date())}
-                  className={input}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={label} htmlFor="note">
-                  {t("Izoh")}
-                </label>
-                <input id="note" name="note" className={input} placeholder={t("ixtiyoriy")} />
-              </div>
-              <div className="flex items-end">
-                <button type="submit" className={`${btnPrimary} w-full`}>
-                  {t("Qabul qilish")}
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-      </details>
+            ) : null}
+            <div className="min-w-[140px]">
+              <label className={label} htmlFor="pm">
+                {t("To'lov usuli")}
+              </label>
+              <select id="pm" name="pm" defaultValue={sp.pm ?? ""} className={input}>
+                <option value="">{t("Barchasi")}</option>
+                {PAYMENT_METHOD_KEYS.map((m) => (
+                  <option key={m} value={m}>
+                    {t(PAYMENT_METHODS[m])}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-[170px] flex-1">
+              <label className={label} htmlFor="q">
+                {t("Bola ismi")}
+              </label>
+              <input
+                id="q"
+                name="q"
+                defaultValue={sp.q ?? ""}
+                placeholder={t("ism bo'yicha qidirish")}
+                className={input}
+              />
+            </div>
+            <button type="submit" className={btnPrimary}>
+              {t("Filtrlash")}
+            </button>
+            {sp.q || sp.pm || sp.b ? (
+              <Link href={qsTab(tab)} className={btn}>
+                {t("Tozalash")}
+              </Link>
+            ) : null}
+          </form>
 
-      <div className="space-y-5">
-        <Card title={t("To'lovlar ro'yxati")}>
-          {payments.length === 0 ? (
-            <Empty>{t("Bu davrda to'lov yo'q.")}</Empty>
-          ) : (
+          {tab === "tolov" ? (
+            payments.length === 0 ? (
+              <Empty>{t("Bu davrda to'lov yo'q.")}</Empty>
+            ) : (
             <div className="scroll-x">
               <table className="w-full min-w-[720px]">
                 <thead className="border-b border-slate-200 dark:border-slate-800">
@@ -453,20 +450,11 @@ export default async function PaymentsPage({
                 </tbody>
               </table>
             </div>
-          )}
-        </Card>
-
-        {intakes.length > 0 ? (
-          <Card
-            title={t("Konsultatsiyalar")}
-            subtitle={t("qabullardan tushgan pul")}
-            action={
-              <Link href="/intakes" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                {t("Qabullar")} →
-              </Link>
-            }
-          >
-            <div className="scroll-x">
+            )
+          ) : intakes.length === 0 ? (
+            <Empty>{t("Bu davrda konsultatsiya puli yo'q.")}</Empty>
+          ) : (
+<div className="scroll-x">
               <table className="w-full min-w-[620px]">
                 <thead className="border-b border-slate-200 dark:border-slate-800">
                   <tr>
@@ -498,9 +486,127 @@ export default async function PaymentsPage({
                 </tbody>
               </table>
             </div>
-          </Card>
-        ) : null}
+          )}
 
+          <p className="border-t border-slate-200 px-5 py-3 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            {tab === "tolov"
+              ? t("To'lov mijozdan markazga keladi — mutaxassisga bog'lanmaydi. Mutaxassisning ish haqi to'lovdan emas, bajarilgan seansdan hisoblanadi.")
+              : t("Konsultatsiya puli mijozga emas, qabulga yoziladi (qabul hali mijoz emas), lekin kassaga va hisobotga qo'shiladi.")}
+          </p>
+        </section>
+
+        <aside className="flex min-w-0 flex-col gap-4">
+          {/* Tez to'lov doim ochiq turadi: qabulxona kun bo'yi shu formadan
+              foydalanadi, har safar bo'lim ochib o'tirmasin */}
+          <section className={`${card} p-5`} data-testid="quick-payment">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              {t("Tez to'lov")}
+            </h2>
+            {clients.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                {t("Avval mijoz qo'shing.")}
+              </p>
+            ) : (
+              <form action={addPayment} className="mt-3.5 flex flex-col gap-3">
+                <div>
+                  <label className={label} htmlFor="clientId">
+                    {t("Mijoz")} *
+                  </label>
+                  {/* Bo'sh tanlov bilan boshlanadi: oldindan birinchi mijoz tanlanib
+                      tursa, e'tibor berilmasa pul o'shanga yozilib ketardi */}
+                  <select id="clientId" name="clientId" className={input} required defaultValue="">
+                    <option value="" disabled>
+                      {t("Mijozni tanlang")}
+                    </option>
+                    {clientOptions()}
+                  </select>
+                </div>
+                <div>
+                  <label className={label} htmlFor="amount">
+                    {t("Summa ({currency})", { currency: t.currency })} *
+                  </label>
+                  <input
+                    id="amount"
+                    name="amount"
+                    inputMode="numeric"
+                    placeholder="500000"
+                    className={input}
+                    required
+                  />
+                </div>
+                <div>
+                  <span className={label}>{t("Qanday keldi")}</span>
+                  <div className="flex gap-1.5">
+                    {PAYMENT_METHOD_KEYS.map((m, i) => (
+                      <label
+                        key={m}
+                        className="flex-1 cursor-pointer rounded-xl border border-slate-300 px-2 py-2 text-center text-xs font-medium text-slate-600 transition has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50 has-[:checked]:font-semibold has-[:checked]:text-indigo-700 dark:border-slate-700 dark:text-slate-300 dark:has-[:checked]:bg-indigo-950 dark:has-[:checked]:text-indigo-300"
+                      >
+                        <input
+                          type="radio"
+                          name="method"
+                          value={m}
+                          defaultChecked={i === 0}
+                          className="sr-only"
+                        />
+                        {t(PAYMENT_METHODS[m])}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={label} htmlFor="paidAt">
+                    {t("Sana")}
+                  </label>
+                  <input
+                    id="paidAt"
+                    name="paidAt"
+                    type="date"
+                    defaultValue={toDateInput(new Date())}
+                    className={input}
+                  />
+                </div>
+                <div>
+                  <label className={label} htmlFor="note">
+                    {t("Izoh")}
+                  </label>
+                  <input id="note" name="note" className={input} placeholder={t("ixtiyoriy")} />
+                </div>
+                <button type="submit" className={btnPrimary}>
+                  {t("Qabul qilish")}
+                </button>
+                <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                  {t("Saqlangach yashil xabar chiqadi — to'lov ro'yxatdan boshqa oyga o'tib ketsa ham bilinadi.")}
+                </p>
+              </form>
+            )}
+          </section>
+
+          <section className={`${card} p-5`}>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                {t("Bugungi kassa")}
+              </h2>
+              <span className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                {t.money(todayTotal)}
+              </span>
+            </div>
+            <div className="mt-3.5 flex flex-col gap-2.5">
+              {todayByMethod.map((m) => (
+                <BarRow
+                  key={m.method}
+                  label={t(PAYMENT_METHODS[m.method])}
+                  value={t.money(m.sum)}
+                  part={todayTotal > 0 ? m.sum / todayTotal : 0}
+                  labelWidth="w-20"
+                />
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500">
+              {t("Konsultatsiya puli ham shu yerda — kassaga u ham tushadi.")}
+            </p>
+          </section>
+        </aside>
       </div>
     </>
   );

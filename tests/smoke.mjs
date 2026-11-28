@@ -344,10 +344,10 @@ for (const [path, marker] of [
 
     await page.goto(`${BASE}/payments`);
     await page.waitForLoadState("networkidle");
-    await page.click('summary:has-text("To\'lov qabul qilish")');
+    // "Tez to'lov" yon panelda doim ochiq turadi — bo'lim ochish shart emas
     await page.selectOption("#clientId", debtor.clientId);
     await page.fill("#amount", String(debtBefore));
-    await page.click('form button:has-text("Qabul qilish")');
+    await page.click('[data-testid="quick-payment"] button:has-text("Qabul qilish")');
 
     const paid = await waitUntil(
       async () => await count("SELECT COUNT(*) AS n FROM Payment") > paymentsBefore,
@@ -358,10 +358,8 @@ for (const [path, marker] of [
       `${paymentsBefore} -> ${await count("SELECT COUNT(*) AS n FROM Payment")}`,
     );
     check(
-      "To'lov qo'shilgach qo'shish oynasi yopiladi va xabar chiqadi",
-      await waitUntil(async () =>
-        !(await page.locator('details:has(summary:has-text("To\'lov qabul qilish"))').evaluate((d) => d.open)),
-      ) && (await page.getByRole("alert").filter({ hasText: "To'lov qabul qilindi" }).count()) > 0,
+      "To'lov qo'shilgach yashil xabar chiqadi",
+      (await page.getByRole("alert").filter({ hasText: "To'lov qabul qilindi" }).count()) > 0,
     );
     check(
       "To'lov qarzni avtomatik yopadi",
@@ -2174,7 +2172,7 @@ if (await payRow.count()) {
   // O'tib ketgan vaqtlar sanalmaydi: hafta oxirida (masalan shanba kechqurun)
   // joriy haftada bitta ham bo'sh vaqt qolmaydi. Shunda keyingi haftaga
   // o'tamiz — tekshiruv kunning qaysi payti ishga tushishiga bog'liq bo'lmasin.
-  const slotLinks = () => page.locator('tbody a[href*="sp="]');
+  const slotLinks = () => page.locator("a[data-vaqt]");
   let cells = await slotLinks().count();
   if (cells === 0) {
     await page.click('a:has-text("Keyingi hafta")');
@@ -2186,12 +2184,12 @@ if (await payRow.count()) {
   }
   check("Haftalik jadvalda bo'sh vaqtlar soni ko'rinadi", cells > 0, `${cells} ta katak`);
 
-  // Katakni bosib vaqtlarni ochamiz va seans yozamiz
+  // Bo'sh vaqtni bosib, o'ngdagi forma to'lishini kutamiz
   const before = await count("SELECT COUNT(*) AS n FROM Session");
+  // Tushlik tekshiruvi uchun hamma bo'sh vaqtni oldindan o'qib olamiz
+  const starts = await slotLinks().evaluateAll((els) => els.map((e) => e.dataset.vaqt));
   await slotLinks().first().click();
-  // Katak bosilganda sahifa qayta chiziladi — forma paydo bo'lishini kutamiz
-  // (networkidle bu yerda yetarli emas, RSC javobi keyinroq chiziladi).
-  const slotForm = page.locator('form:has(select[name="clientId"])').first();
+  const slotForm = page.locator('[data-testid="slot-booking"] form').first();
   const hasSlots = await slotForm
     .waitFor({ state: "visible", timeout: 10000 })
     .then(() => true)
@@ -2200,7 +2198,6 @@ if (await payRow.count()) {
   {
     // Tushlik 13:00–14:00, oraliq 45 daqiqa: 12:30 (13:15 gacha) va 13:15
     // tushlikka kirib qoladi — taklif qilinmasligi kerak
-    const starts = await page.locator('input[name="startsAt"]').evaluateAll((els) => els.map((e) => e.value));
     const inLunch = starts.filter((v) => {
       const [h, m] = v.slice(11, 16).split(":").map(Number);
       const min = h * 60 + m;
